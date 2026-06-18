@@ -141,7 +141,7 @@ install_s-ui() {
             exit 1
         fi
         echo -e "已获取 s-ui 最新版本：${last_version}，开始安装..."
-        wget -N --no-check-certificate -O /tmp/s-ui-linux-$(arch).tar.gz https://github.com/beacon8/s-ui-pro/releases/download/${last_version}/s-ui-linux-$(arch).tar.gz
+        wget -N --no-check-certificate -O /tmp/s-ui-linux-$(arch).tar.gz https://gh-proxy.com/https://github.com/beacon8/s-ui-pro/releases/download/${last_version}/s-ui-linux-$(arch).tar.gz
         if [[ $? -ne 0 ]]; then
             echo -e "${red}下载 s-ui 失败，请确认服务器可以访问 Github ${plain}"
             exit 1
@@ -149,7 +149,7 @@ install_s-ui() {
     else
         last_version=$1
         [[ "${last_version}" != v* ]] && last_version="v${last_version}"
-        url="https://github.com/beacon8/s-ui-pro/releases/download/${last_version}/s-ui-linux-$(arch).tar.gz"
+        url="https://gh-proxy.com/https://github.com/beacon8/s-ui-pro/releases/download/${last_version}/s-ui-linux-$(arch).tar.gz"
         echo -e "开始安装 s-ui ${last_version}"
         wget -N --no-check-certificate -O /tmp/s-ui-linux-$(arch).tar.gz ${url}
         if [[ $? -ne 0 ]]; then
