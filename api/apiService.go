@@ -336,6 +336,12 @@ func (a *ApiService) SubConvert(c *gin.Context) {
 	jsonObj(c, result, err)
 }
 
+func (a *ApiService) SubConvertText(c *gin.Context) {
+	content := c.Request.FormValue("content")
+	result, err := util.ParseLocalSub(content)
+	jsonObj(c, result, err)
+}
+
 func (a *ApiService) ImportDb(c *gin.Context) {
 	file, _, err := c.Request.FormFile("db")
 	if err != nil {

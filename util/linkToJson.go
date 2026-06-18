@@ -531,6 +531,106 @@ func getTransport(tp_type string, q *url.Values) map[string]interface{} {
 	return transport
 }
 
+// parseShortLine parses non-URI shorthand lines into a sing-box outbound.
+// Supported shapes:
+//
+//	ip:port
+//	ip:port#tag
+//	ip:port:user:pass
+//	ip:port:user:pass#tag
+//	socks://ip:port[:user:pass][#tag]
+//	http://ip:port[:user:pass][#tag]
+//	[v6]:port[:user:pass][#tag]
+func parseShortLine(line string, i int) (*map[string]interface{}, string, error) {
+	line = strings.TrimSpace(line)
+	if line == "" {
+		return nil, "", common.NewError("empty line")
+	}
+
+	proto := "socks"
+	switch {
+	case strings.HasPrefix(line, "socks5://"):
+		proto, line = "socks", strings.TrimPrefix(line, "socks5://")
+	case strings.HasPrefix(line, "socks://"):
+		proto, line = "socks", strings.TrimPrefix(line, "socks://")
+	case strings.HasPrefix(line, "http://"):
+		proto, line = "http", strings.TrimPrefix(line, "http://")
+	}
+
+	// split tag
+	var tag string
+	if idx := strings.LastIndex(line, "#"); idx >= 0 {
+		tag = line[idx+1:]
+		if t, err := url.QueryUnescape(tag); err == nil {
+			tag = t
+		}
+		line = line[:idx]
+	}
+
+	// strip IPv6 brackets if present at start
+	var host string
+	var rest string
+	if strings.HasPrefix(line, "[") {
+		end := strings.Index(line, "]")
+		if end < 0 {
+			return nil, "", common.NewError("malformed ipv6")
+		}
+		host = line[1:end]
+		rest = strings.TrimPrefix(line[end+1:], ":") // expect port[:user:pass]
+	} else {
+		first := strings.Index(line, ":")
+		if first < 0 {
+			return nil, "", common.NewError("missing port")
+		}
+		host = line[:first]
+		rest = line[first+1:]
+	}
+
+	parts := strings.SplitN(rest, ":", 3) // port [user [pass]]
+	if len(parts) < 1 {
+		return nil, "", common.NewError("invalid line")
+	}
+	port, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return nil, "", common.NewError("invalid port")
+	}
+
+	out := map[string]interface{}{
+		"type":        proto,
+		"server":      host,
+		"server_port": port,
+	}
+	if proto == "socks" {
+		out["version"] = "5"
+	}
+	if len(parts) == 3 {
+		out["username"] = parts[1]
+		out["password"] = parts[2]
+	} else if len(parts) == 2 {
+		// only user without pass — treat as invalid
+		return nil, "", common.NewError("missing password")
+	}
+
+	if tag == "" {
+		tag = fmt.Sprintf("%s-%d", proto, i)
+	}
+	out["tag"] = tag
+
+	return &out, tag, nil
+}
+
+// GetOutboundLine tries standard URI first, then shorthand. Returns (nil,"",nil) for empty lines.
+func GetOutboundLine(line string, i int) (*map[string]interface{}, string, error) {
+	line = strings.TrimSpace(line)
+	if line == "" {
+		return nil, "", nil
+	}
+	if out, tag, err := GetOutbound(line, i); err == nil {
+		return out, tag, nil
+	}
+	return parseShortLine(line, i)
+}
+
 func getTls(security string, q *url.Values) map[string]interface{} {
 	tls := map[string]interface{}{}
 	tls_fp := q.Get("fp")

@@ -35,41 +35,26 @@ func GetExternalLink(url string) string {
 	return data
 }
 
-func GetExternalSub(url string) ([]map[string]interface{}, error) {
-	var err error
+// parseSubContent parses already-decoded content (post base64 fallback) into outbounds.
+func parseSubContent(data string) ([]map[string]interface{}, error) {
 	var result []map[string]interface{}
 
-	if len(url) == 0 {
-		return nil, common.NewError("no url")
-	}
-
-	data := GetExternalLink(url)
-	if len(data) == 0 {
-		return nil, common.NewError("no result")
-	}
-
-	// if the data is a JSON object
 	if strings.HasPrefix(data, "{") && strings.HasSuffix(data, "}") {
 		var jsonData map[string]interface{}
-		err = json.Unmarshal([]byte(data), &jsonData)
-		if err != nil {
+		if err := json.Unmarshal([]byte(data), &jsonData); err != nil {
 			logger.Warning("sub: Error unmarshalling JSON:", err)
 			return nil, err
 		}
 		outbounds, ok := jsonData["outbounds"].([]any)
 		if !ok {
-			logger.Warning("sub: Error getting outbounds:", err)
-			return nil, err
+			return nil, common.NewError("no outbounds in json")
 		}
 		for _, outbound := range outbounds {
 			outboundMap, ok := outbound.(map[string]interface{})
 			if ok && len(outboundMap) > 0 {
 				oType, _ := outboundMap["type"].(string)
 				switch oType {
-				case "urltest":
-				case "direct":
-				case "selector":
-				case "block":
+				case "urltest", "direct", "selector", "block":
 					continue
 				default:
 					result = append(result, outboundMap)
@@ -80,18 +65,39 @@ func GetExternalSub(url string) ([]map[string]interface{}, error) {
 			return nil, common.NewError("no result")
 		}
 		return result, nil
-	} else {
-		// if data is a text
-		links := strings.Split(data, "\n")
-		for _, link := range links {
-			linkToJson, _, err := GetOutbound(link, 0)
-			if err == nil {
-				result = append(result, *linkToJson)
-			}
+	}
+
+	// multi-line: try URI first, then shorthand
+	links := strings.Split(data, "\n")
+	for idx, link := range links {
+		out, _, err := GetOutboundLine(link, idx+1)
+		if err == nil && out != nil {
+			result = append(result, *out)
 		}
 	}
 	if len(result) == 0 {
 		return nil, common.NewError("no result")
 	}
 	return result, nil
+}
+
+// GetExternalSub fetches a remote URL and parses outbounds (original signature preserved).
+func GetExternalSub(url string) ([]map[string]interface{}, error) {
+	if len(url) == 0 {
+		return nil, common.NewError("no url")
+	}
+	data := GetExternalLink(url)
+	if len(data) == 0 {
+		return nil, common.NewError("no result")
+	}
+	return parseSubContent(data)
+}
+
+// ParseLocalSub parses locally-pasted node text into outbounds (no outbound HTTP request).
+func ParseLocalSub(content string) ([]map[string]interface{}, error) {
+	if len(content) == 0 {
+		return nil, common.NewError("no content")
+	}
+	data := StrOrBase64Encoded(content)
+	return parseSubContent(data)
 }

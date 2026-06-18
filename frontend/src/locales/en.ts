@@ -406,6 +406,7 @@ export default {
     addr: "Server Address",
     port: "Server Port",
     addUrlTest: "Add URLTest",
+    pasteNodes: "Paste nodes",
     delay: "Delay",
   },
   rule: {

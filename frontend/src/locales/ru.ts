@@ -407,6 +407,7 @@ export default {
     addr: "Адрес сервера",
     port: "Порт сервера",
     addUrlTest: "Добавить URLTest",
+    pasteNodes: "Вставить узлы",
     delay: "Задержка",
   },
   rule: {

@@ -406,6 +406,7 @@ export default {
     addr: "伺服器地址",
     port: "伺服器端口",
     addUrlTest: "新增 URLTest",
+    pasteNodes: "貼上節點",
     delay: "延遲",
   },
   rule: {

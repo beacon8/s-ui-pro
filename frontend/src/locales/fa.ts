@@ -406,6 +406,7 @@ export default {
     addr: "آدرس سرور",
     port: "پورت سرور",
     addUrlTest: "افزودن URLTest",
+    pasteNodes: "چسباندن نودها",
     delay: "تأخیر"
   },
   rule: {

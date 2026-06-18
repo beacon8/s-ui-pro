@@ -406,6 +406,7 @@ export default {
     addr: "Địa chỉ Máy chủ",
     port: "Cổng Máy chủ",
     addUrlTest: "Thêm URLTest",
+    pasteNodes: "Dán nút",
     delay: "Độ trễ",
   },
   rule: {

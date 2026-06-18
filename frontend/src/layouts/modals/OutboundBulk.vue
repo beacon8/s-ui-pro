@@ -8,17 +8,35 @@
       <v-card-text style="padding: 0 16px; overflow-y: scroll;">
         <v-row v-if="outbounds.length==0">
           <v-col cols="12">
-            <v-text-field v-model="link"
-              dir="ltr"
-              :label="$t('client.sub')"
-              placeholder="http[s]://<domain>[:]<port>/<path>"
-              hide-details />
+            <v-tabs v-model="mode" density="compact" color="primary" align-tabs="center">
+              <v-tab value="url">{{ $t('client.sub') }}</v-tab>
+              <v-tab value="text">{{ $t('out.pasteNodes') }}</v-tab>
+            </v-tabs>
+          </v-col>
+          <v-col cols="12">
+            <v-window v-model="mode">
+              <v-window-item value="url">
+                <v-text-field v-model="link"
+                  dir="ltr"
+                  :label="$t('client.sub')"
+                  placeholder="http[s]://<domain>[:]<port>/<path>"
+                  hide-details />
+              </v-window-item>
+              <v-window-item value="text">
+                <v-textarea v-model="content"
+                  dir="ltr"
+                  rows="10"
+                  :label="$t('out.pasteNodes')"
+                  :placeholder="textPlaceholder"
+                  hide-details />
+              </v-window-item>
+            </v-window>
           </v-col>
           <v-col cols="12">
             <v-checkbox v-model="addUrlTest" :label="$t('out.addUrlTest')" />
           </v-col>
           <v-col cols="12" align="center">
-            <v-btn hide-details variant="tonal" :loading="loading" @click="linkCheck">{{ $t('submit') }}</v-btn>
+            <v-btn hide-details variant="tonal" :loading="loading" @click="submitConvert">{{ $t('submit') }}</v-btn>
           </v-col>
         </v-row>
         <v-data-table
@@ -77,7 +95,9 @@ export default {
   data() {
     return {
       loading: false,
+      mode: 'url',
       link: "",
+      content: "",
       outbounds: <Outbound[]>[],
       outChecks: <number[]>[],
       addUrlTest: false,
@@ -88,6 +108,8 @@ export default {
       this.outbounds = []
       this.outChecks = []
       this.link = ""
+      this.content = ""
+      this.mode = 'url'
       this.addUrlTest = false
       this.loading = false
     },
@@ -95,29 +117,32 @@ export default {
       this.resetData()
       this.$emit('close')
     },
-    async linkCheck() {
+    async submitConvert() {
       this.loading = true
       this.outbounds = []
-      const msg = await HttpUtils.post('api/subConvert', { link: this.link })
-      if (msg.success) {
-        if (msg.obj?.length>0) {
-          msg.obj.forEach((o:any, index:number) => {
-            if (this.newOutboundTags.includes(o.tag)) o.tag = o.tag + "-" + (index+1)
-            this.outbounds.push(createOutbound(o.type, o))
-            this.outChecks.push(0)
-          })
-          if (this.addUrlTest) {
-            const urlTestTsg = "urltest-" + RandomUtil.randomSeq(3)
-            this.outbounds.push(createOutbound("urltest", {
-              tag: urlTestTsg,
-              outbounds: this.outbounds.map((o:Outbound) => o.tag),
-              interrupt_exist_connections: false,
-              interval: "30s"
-            }))
-          }
-        }
+      const msg = this.mode === 'url'
+        ? await HttpUtils.post('api/subConvert',     { link: this.link })
+        : await HttpUtils.post('api/subConvertText', { content: this.content })
+      if (msg.success && msg.obj?.length > 0) {
+        this.fillOutbounds(msg.obj)
       }
       this.loading = false
+    },
+    fillOutbounds(list: any[]) {
+      list.forEach((o: any, index: number) => {
+        if (this.newOutboundTags.includes(o.tag)) o.tag = o.tag + "-" + (index + 1)
+        this.outbounds.push(createOutbound(o.type, o))
+        this.outChecks.push(0)
+      })
+      if (this.addUrlTest) {
+        const urlTestTag = "urltest-" + RandomUtil.randomSeq(3)
+        this.outbounds.push(createOutbound("urltest", {
+          tag: urlTestTag,
+          outbounds: this.outbounds.map((o: Outbound) => o.tag),
+          interrupt_exist_connections: false,
+          interval: "30s"
+        }))
+      }
     },
     async saveChanges() {
       if (!this.$props.visible) return
@@ -142,6 +167,9 @@ export default {
   computed: {
     newOutboundTags(): string[] {
       return this.outbounds.map((o:Outbound) => o.tag)
+    },
+    textPlaceholder(): string {
+      return 'vmess://...\nvless://...\n1.2.3.4:1080#proxy01\n1.2.3.4:1080:user:pass#proxy02\nhttp://1.2.3.4:8080#proxy03'
     }
   },
   watch: {
