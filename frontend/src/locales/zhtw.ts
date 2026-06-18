@@ -474,6 +474,9 @@ export default {
       errFetch: "取得失敗：{message}",
       errNoFile: "未選擇檔案。",
       errNoArraysInFile: '檔案中找不到 "rules" 或 "rule_set"。',
+      importSuccess: '成功匯入 {count} 條規則。',
+      importPartial: '匯入 {added} 條，跳過 {skipped} 條（使用者已被佔用）。',
+      importAllSkipped: '全部 {count} 條因使用者衝突被跳過。',
     },
   },
   ruleset: {

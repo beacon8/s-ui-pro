@@ -475,6 +475,9 @@ export default {
       errFetch: "Ошибка загрузки: {message}",
       errNoFile: "Файл не выбран.",
       errNoArraysInFile: 'В файле нет "rules" или "rule_set".',
+      importSuccess: 'Успешно импортировано {count} правил(о).',
+      importPartial: 'Импортировано {added}, пропущено {skipped} (пользователи уже заняты).',
+      importAllSkipped: 'Все {count} правил(о) пропущены из-за конфликтов пользователей.',
     },
   },
   ruleset: {

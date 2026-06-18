@@ -134,8 +134,8 @@
           <v-icon icon="mdi-magnify" />
         </v-btn>
         <v-spacer />
-        <v-btn @click="close" variant="text">{{ $t('actions.close') }}</v-btn>
-        <v-btn @click="save" color="primary" variant="flat" :disabled="!parsed">
+        <v-btn @click="close" variant="text" :disabled="importing">{{ $t('actions.close') }}</v-btn>
+        <v-btn @click="save" color="primary" variant="flat" :disabled="!parsed || importing" :loading="importing">
           {{ $t('actions.save') }}
         </v-btn>
       </v-card-actions>
@@ -145,7 +145,7 @@
 
 <script lang="ts">
 export default {
-  props: ["visible", "existingRulesCount", "existingRulesetsCount", "existingRulesetTags"],
+  props: ["visible", "existingRulesCount", "existingRulesetsCount", "existingRulesetTags", "importing"],
   emits: ['save', 'close'],
   data() {
     return {

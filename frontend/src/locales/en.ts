@@ -474,6 +474,9 @@ export default {
       errFetch: "Fetch error: {message}",
       errNoFile: "No file selected.",
       errNoArraysInFile: 'No "rules" or "rule_set" found in the file.',
+      importSuccess: 'Imported {count} rule(s) successfully.',
+      importPartial: 'Imported {added} rule(s), skipped {skipped} (users already occupied).',
+      importAllSkipped: 'All {count} rule(s) skipped due to user conflicts.',
     },
   },
   ruleset: {

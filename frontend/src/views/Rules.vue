@@ -26,6 +26,7 @@
     :existingRulesCount="rules.length"
     :existingRulesetsCount="rulesets.length"
     :existingRulesetTags="rulesetTags"
+    :importing="importing"
     @save="saveImportRule"
     @close="closeImportRule"
   />
@@ -171,10 +172,14 @@ import RuleImport from '@/layouts/modals/RuleImport.vue'
 import { Config } from '@/types/config'
 import { actionKeys, ruleset } from '@/types/rules'
 import { FindDiff } from '@/plugins/utils'
+import { push } from 'notivue'
+import { useI18n } from 'vue-i18n'
 
 const oldConfig = ref({})
 const loading = ref(false)
 const actionMenu = ref(false)
+const importing = ref(false)
+const { t } = useI18n()
 const appConfig = computed((): Config => {
   return <Config> Data().config
 })
@@ -285,21 +290,110 @@ function closeImportRule() {
   importRulesModal.value.visible = false
 }
 
-function saveImportRule(block: any, mode: 'merge' | 'replace', applyFinal: boolean) {
+// Collect user/auth_user from a rule recursively (handles logical rules)
+function collectRuleUsers(r: any): Set<string> {
+  const users = new Set<string>()
+  const pick = (arr: any[]) => { if (Array.isArray(arr)) arr.forEach((u: string) => u && users.add(u)) }
+  pick(r.user)
+  pick(r.auth_user)
+  if (r.type === 'logical' && Array.isArray(r.rules)) {
+    r.rules.forEach((sub: any) => collectRuleUsers(sub).forEach((u) => users.add(u)))
+  }
+  return users
+}
+
+// Build occupied set from existing rules (only action===route or action absent)
+function buildOccupiedUsers(existingRules: any[]): Set<string> {
+  const occupied = new Set<string>()
+  for (const r of existingRules) {
+    const act = r.action
+    if (act && act !== 'route') continue
+    collectRuleUsers(r).forEach((u) => occupied.add(u))
+  }
+  return occupied
+}
+
+async function saveImportRule(block: any, mode: 'merge' | 'replace', applyFinal: boolean) {
   if (mode === 'replace') {
     route.value.rules = block.rules ?? []
     route.value.rule_set = block.rule_set ?? []
-  } else {
-    const existingTags = new Set(rulesetTags.value)
-    if (block.rules) rules.value.push(...block.rules)
-    if (block.rule_set) {
-      for (const rs of block.rule_set) {
-        if (!existingTags.has(rs.tag)) rulesets.value.push(rs)
-      }
+    if (applyFinal && block.final) route.value.final = block.final
+    importing.value = true
+    const ok = await Data().save('config', 'set', appConfig.value)
+    importing.value = false
+    if (ok) {
+      oldConfig.value = JSON.parse(JSON.stringify(Data().config))
+      importRulesModal.value.visible = false
+    }
+    return
+  }
+
+  // merge mode: conflict detection
+  const occupied = buildOccupiedUsers(rules.value)
+  let added = 0
+  let skipped = 0
+
+  const existingTags = new Set(rulesetTags.value)
+  const incomingRules: any[] = block.rules ?? []
+  const incomingRulesets: any[] = block.rule_set ?? []
+
+  for (const r of incomingRules) {
+    const users = collectRuleUsers(r)
+    if (users.size > 0) {
+      const hasConflict = [...users].some((u) => occupied.has(u))
+      if (hasConflict) { skipped++; continue }
+      // Add this rule's users to occupied so same-batch duplicates are caught
+      users.forEach((u) => occupied.add(u))
+    }
+    rules.value.push(r)
+    added++
+  }
+
+  let addedRulesets = 0
+  for (const rs of incomingRulesets) {
+    if (!existingTags.has(rs.tag)) {
+      rulesets.value.push(rs)
+      existingTags.add(rs.tag)
+      addedRulesets++
     }
   }
+
   if (applyFinal && block.final) route.value.final = block.final
-  importRulesModal.value.visible = false
+
+  const totalIncoming = incomingRules.length
+
+  // All skipped — no write, no restart
+  if (added === 0 && addedRulesets === 0 && !(applyFinal && block.final)) {
+    push.warning({
+      title: t('rule.import.rulesTitle'),
+      duration: 5000,
+      message: t('rule.import.importAllSkipped', { count: totalIncoming }),
+    })
+    importRulesModal.value.visible = false
+    return
+  }
+
+  importing.value = true
+  const ok = await Data().save('config', 'set', appConfig.value)
+  importing.value = false
+
+  if (ok) {
+    oldConfig.value = JSON.parse(JSON.stringify(Data().config))
+    importRulesModal.value.visible = false
+    if (skipped > 0) {
+      push.success({
+        title: t('rule.import.rulesTitle'),
+        duration: 5000,
+        message: t('rule.import.importPartial', { added, skipped }),
+      })
+    } else {
+      push.success({
+        title: t('rule.import.rulesTitle'),
+        duration: 5000,
+        message: t('rule.import.importSuccess', { count: added }),
+      })
+    }
+  }
 }
 
 const importRulesetsModal = ref({ visible: false })

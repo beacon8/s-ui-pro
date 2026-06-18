@@ -474,6 +474,9 @@ export default {
       errFetch: "Lỗi tải: {message}",
       errNoFile: "Chưa chọn tệp.",
       errNoArraysInFile: 'Không tìm thấy "rules" hoặc "rule_set" trong tệp.',
+      importSuccess: 'Đã nhập thành công {count} quy tắc.',
+      importPartial: 'Đã nhập {added} quy tắc, bỏ qua {skipped} (người dùng đã bị chiếm).',
+      importAllSkipped: 'Tất cả {count} quy tắc bị bỏ qua do xung đột người dùng.',
     },
   },
   ruleset: {

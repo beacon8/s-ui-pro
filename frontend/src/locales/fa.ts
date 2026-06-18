@@ -474,6 +474,9 @@ export default {
       errFetch: "خطای دریافت: <p dir='ltr'>{message}</p>",
       errNoFile: "فایلی انتخاب نشده است.",
       errNoArraysInFile: 'در فایل «rules» یا «rule_set» یافت نشد.',
+      importSuccess: '{count} قانون با موفقیت وارد شد.',
+      importPartial: '{added} قانون وارد شد، {skipped} مورد رد شد (کاربر قبلاً اشغال شده).',
+      importAllSkipped: 'همه {count} قانون به دلیل تعارض کاربر رد شدند.',
     },
   },
   ruleset: {
