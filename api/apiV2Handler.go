@@ -55,6 +55,8 @@ func (a *APIv2Handler) postHandler(c *gin.Context) {
 		a.ApiService.SubConvertText(c)
 	case "importdb":
 		a.ApiService.ImportDb(c)
+	case "importRules":
+		a.ApiService.ImportRules(c, username)
 	default:
 		jsonMsg(c, "failed", common.NewError("unknown action: ", action))
 	}

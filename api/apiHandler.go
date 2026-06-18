@@ -54,6 +54,8 @@ func (a *APIHandler) postHandler(c *gin.Context) {
 		a.ApiService.SubConvertText(c)
 	case "importdb":
 		a.ApiService.ImportDb(c)
+	case "importRules":
+		a.ApiService.ImportRules(c, loginUser)
 	case "addToken":
 		a.ApiService.AddToken(c)
 		a.apiv2.ReloadTokens()

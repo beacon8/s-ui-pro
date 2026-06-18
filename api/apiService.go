@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"io"
 	"strconv"
 	"time"
 
@@ -407,5 +408,19 @@ func (a *ApiService) GetCheckOutbound(c *gin.Context) {
 	tag := c.Query("tag")
 	link := c.Query("link")
 	result := a.ConfigService.CheckOutbound(tag, link)
+	jsonObj(c, result, nil)
+}
+
+func (a *ApiService) ImportRules(c *gin.Context, loginUser string) {
+	data, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		jsonMsg(c, "importRules", err)
+		return
+	}
+	result, err := a.ConfigService.ImportRouteRules(json.RawMessage(data), loginUser)
+	if err != nil {
+		jsonMsg(c, "importRules", err)
+		return
+	}
 	jsonObj(c, result, nil)
 }

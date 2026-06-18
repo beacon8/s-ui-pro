@@ -278,6 +278,240 @@ func (s *ConfigService) CheckChanges(lu string) (bool, error) {
 	}
 }
 
+// ImportRuleResult is the return value of ImportRouteRules.
+type ImportRuleResult struct {
+	Added         int                   `json:"added"`
+	Skipped       int                   `json:"skipped"`
+	SkippedRules  []ImportSkippedDetail `json:"skippedRules,omitempty"`
+	AddedRulesets int                   `json:"addedRulesets"`
+	TotalRules    int                   `json:"totalRules"`
+	Restarted     bool                  `json:"restarted"`
+}
+
+type ImportSkippedDetail struct {
+	Index            int      `json:"index"`
+	ConflictUsers    []string `json:"conflictUsers"`
+	ExistingOutbound []string `json:"existingOutbound,omitempty"`
+}
+
+type importRulesPayload struct {
+	Rules   []map[string]interface{} `json:"rules"`
+	RuleSet []map[string]interface{} `json:"rule_set,omitempty"`
+	Final   string                   `json:"final,omitempty"`
+}
+
+// ImportRouteRules batch-appends route rules with conflict-skip semantics, then
+// writes the updated config and asynchronously restarts the core.
+func (s *ConfigService) ImportRouteRules(data json.RawMessage, loginUser string) (*ImportRuleResult, error) {
+	var payload importRulesPayload
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return nil, common.NewErrorf("invalid payload: %v", err)
+	}
+	if len(payload.Rules) == 0 && len(payload.RuleSet) == 0 && payload.Final == "" {
+		return nil, common.NewError("nothing to import")
+	}
+
+	cfgStr, err := s.SettingService.GetConfig()
+	if err != nil {
+		return nil, err
+	}
+	var cfg map[string]interface{}
+	if err := json.Unmarshal([]byte(cfgStr), &cfg); err != nil {
+		return nil, common.NewErrorf("invalid stored config: %v", err)
+	}
+
+	route, _ := cfg["route"].(map[string]interface{})
+	if route == nil {
+		route = map[string]interface{}{}
+		cfg["route"] = route
+	}
+
+	existingRules := castMapSlice(route["rules"])
+	existingSets := castMapSlice(route["rule_set"])
+
+	occupied := collectOccupiedUsers(existingRules)
+
+	result := &ImportRuleResult{}
+
+	for i, r := range payload.Rules {
+		incoming := collectRuleUsers(r)
+		if len(incoming) == 0 {
+			existingRules = append(existingRules, r)
+			result.Added++
+			continue
+		}
+
+		var conflicts []string
+		outboundSet := map[string]struct{}{}
+		for u := range incoming {
+			if outbound, ok := occupied[u]; ok {
+				conflicts = append(conflicts, u)
+				if outbound != "" {
+					outboundSet[outbound] = struct{}{}
+				}
+			}
+		}
+		if len(conflicts) > 0 {
+			existingOuts := make([]string, 0, len(outboundSet))
+			for o := range outboundSet {
+				existingOuts = append(existingOuts, o)
+			}
+			result.Skipped++
+			result.SkippedRules = append(result.SkippedRules, ImportSkippedDetail{
+				Index:            i,
+				ConflictUsers:    conflicts,
+				ExistingOutbound: existingOuts,
+			})
+			continue
+		}
+
+		ob, _ := r["outbound"].(string)
+		for u := range incoming {
+			occupied[u] = ob
+		}
+		existingRules = append(existingRules, r)
+		result.Added++
+	}
+	route["rules"] = existingRules
+
+	if len(payload.RuleSet) > 0 {
+		tagSet := map[string]bool{}
+		for _, rs := range existingSets {
+			if t, ok := rs["tag"].(string); ok {
+				tagSet[t] = true
+			}
+		}
+		for _, rs := range payload.RuleSet {
+			tag, _ := rs["tag"].(string)
+			if tag == "" || tagSet[tag] {
+				continue
+			}
+			existingSets = append(existingSets, rs)
+			tagSet[tag] = true
+			result.AddedRulesets++
+		}
+		route["rule_set"] = existingSets
+	}
+
+	if payload.Final != "" {
+		route["final"] = payload.Final
+	}
+
+	result.TotalRules = len(existingRules)
+
+	// No substantive change — skip write and restart.
+	if result.Added == 0 && result.AddedRulesets == 0 && payload.Final == "" {
+		return result, nil
+	}
+
+	newCfg, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+
+	db := database.GetDB()
+	tx := db.Begin()
+	committed := false
+	defer func() {
+		if !committed {
+			tx.Rollback()
+		}
+	}()
+
+	if err = s.SettingService.SaveConfig(tx, newCfg); err != nil {
+		return nil, err
+	}
+	if err = tx.Create(&model.Changes{
+		DateTime: time.Now().Unix(),
+		Actor:    loginUser,
+		Key:      "config",
+		Action:   "importRules",
+		Obj:      data,
+	}).Error; err != nil {
+		return nil, err
+	}
+	if err = tx.Commit().Error; err != nil {
+		return nil, err
+	}
+	committed = true
+
+	LastUpdate = time.Now().Unix()
+
+	cfgCopy := make(json.RawMessage, len(newCfg))
+	copy(cfgCopy, newCfg)
+	go func() { _ = s.restartCoreWithConfig(cfgCopy) }()
+	result.Restarted = true
+
+	return result, nil
+}
+
+func castMapSlice(v interface{}) []map[string]interface{} {
+	if v == nil {
+		return nil
+	}
+	arr, ok := v.([]interface{})
+	if !ok {
+		return nil
+	}
+	out := make([]map[string]interface{}, 0, len(arr))
+	for _, x := range arr {
+		if m, ok := x.(map[string]interface{}); ok {
+			out = append(out, m)
+		}
+	}
+	return out
+}
+
+// collectOccupiedUsers collects user/auth_user from rules whose action is
+// absent (defaults to "route") or explicitly "route".
+// Returns map[username] = first occupying outbound tag.
+func collectOccupiedUsers(rules []map[string]interface{}) map[string]string {
+	occupied := map[string]string{}
+	for _, r := range rules {
+		if act, ok := r["action"].(string); ok && act != "" && act != "route" {
+			continue
+		}
+		ob, _ := r["outbound"].(string)
+		for u := range collectRuleUsers(r) {
+			if _, exists := occupied[u]; !exists {
+				occupied[u] = ob
+			}
+		}
+	}
+	return occupied
+}
+
+// collectRuleUsers recursively collects all user/auth_user values from a rule,
+// including logical sub-rules.
+func collectRuleUsers(r map[string]interface{}) map[string]struct{} {
+	out := map[string]struct{}{}
+	pickArr := func(key string) {
+		arr, ok := r[key].([]interface{})
+		if !ok {
+			return
+		}
+		for _, v := range arr {
+			if s, ok := v.(string); ok && s != "" {
+				out[s] = struct{}{}
+			}
+		}
+	}
+	pickArr("user")
+	pickArr("auth_user")
+	if t, _ := r["type"].(string); t == "logical" {
+		if subs, ok := r["rules"].([]interface{}); ok {
+			for _, sub := range subs {
+				if m, ok := sub.(map[string]interface{}); ok {
+					for u := range collectRuleUsers(m) {
+						out[u] = struct{}{}
+					}
+				}
+			}
+		}
+	}
+	return out
+}
+
 func (s *ConfigService) GetChanges(actor string, chngKey string, count string) []model.Changes {
 	c, _ := strconv.Atoi(count)
 	whereString := "`id`>0"
