@@ -62,6 +62,17 @@
             </v-col>
           </v-row>
           <v-row>
+            <v-col cols="12" sm="6" md="4">
+              <v-text-field v-model.number="bulkData.upLimit" type="number" min="0" :label="$t('client.upLimit')" :suffix="limitSuffix" :hint="$t('client.zeroIsUnlimited')" persistent-hint></v-text-field>
+            </v-col>
+            <v-col cols="12" sm="6" md="4">
+              <v-text-field v-model.number="bulkData.downLimit" type="number" min="0" :label="$t('client.downLimit')" :suffix="limitSuffix" :hint="$t('client.zeroIsUnlimited')" persistent-hint></v-text-field>
+            </v-col>
+            <v-col cols="12" sm="6" md="4">
+              <v-select v-model="bulkData.limitUnit" :items="['mbps', 'kbps', 'bps']" :label="$t('client.limitUnit')" hide-details></v-select>
+            </v-col>
+          </v-row>
+          <v-row>
             <v-col>
               <v-select
                 v-model="bulkData.clientInbounds"
@@ -126,6 +137,9 @@ export default {
         delayStart: false,
         autoReset: false,
         resetDays: 0,
+        upLimit: 0,
+        downLimit: 0,
+        limitUnit: 'mbps',
       },
       patterns: [
         { title: i18n.global.t("bulk.random"), value: "random" },
@@ -148,6 +162,9 @@ export default {
         delayStart: false,
         autoReset: false,
         resetDays: 0,
+        upLimit: 0,
+        downLimit: 0,
+        limitUnit: 'mbps',
       }
     },
     closeModal() {
@@ -178,6 +195,9 @@ export default {
           delayStart: this.bulkData.delayStart,
           autoReset: this.bulkData.autoReset,
           resetDays: this.bulkData.resetDays,
+          upLimit: this.bulkData.upLimit,
+          downLimit: this.bulkData.downLimit,
+          limitUnit: this.bulkData.limitUnit as 'mbps' | 'kbps' | 'bps',
         }))
       }
       // Check duplicate names
@@ -214,7 +234,15 @@ export default {
       this.bulkData.clientInbounds = this.inboundTags.map((i:any) => i.value).sort()
     }
   },
-  computed: {},
+  computed: {
+    limitSuffix() :string {
+      switch (this.bulkData.limitUnit) {
+        case 'kbps': return 'Kbps'
+        case 'bps': return 'bps'
+        default: return 'Mbps'
+      }
+    },
+  },
   watch: {
     visible(newValue) {
       if (newValue) {
