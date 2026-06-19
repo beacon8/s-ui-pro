@@ -206,6 +206,21 @@ func (a *ApiService) GetStats(c *gin.Context) {
 	jsonObj(c, data, err)
 }
 
+func (a *ApiService) GetTopUsers(c *gin.Context) {
+	period := c.Query("period")
+	direction := c.Query("direction")
+	limit, err := strconv.Atoi(c.Query("limit"))
+	if err != nil {
+		limit = 10
+	}
+	data, err := a.StatsService.GetTopUsers(period, limit, direction)
+	if err != nil {
+		jsonMsg(c, "", err)
+		return
+	}
+	jsonObj(c, data, nil)
+}
+
 func (a *ApiService) GetStatus(c *gin.Context) {
 	request := c.Query("r")
 	result := a.ServerService.GetStatus(request)
