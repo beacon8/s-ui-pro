@@ -146,21 +146,25 @@ export default {
     },
     async saveChanges() {
       if (!this.$props.visible) return
-      // check duplicate tag
-      this.outbounds.forEach((o:Outbound, index:number) => {
-        const isDuplicatedTag = Data().checkTag("outbound",0, o.tag)
-        this.outChecks[index] = isDuplicatedTag ? 2 : 0
-      })
 
-      // save data
-      this.loading = true
-      this.outbounds.forEach(async (o:Outbound, index:number) => {
-        if (this.outChecks[index] == 2) return
-        this.outChecks[index] = 3
-        const success = await Data().save("outbounds",  "new", o)
-        if (success) this.outChecks[index] = 1
-        else this.outChecks[index] = 2
+      // check duplicate tags first
+      let hasDuplicate = false
+      this.outbounds.forEach((o:Outbound, index:number) => {
+        const isDuplicatedTag = Data().checkTag("outbound", 0, o.tag)
+        this.outChecks[index] = isDuplicatedTag ? 2 : 0
+        if (isDuplicatedTag) hasDuplicate = true
       })
+      if (hasDuplicate) return
+
+      // submit all at once
+      this.loading = true
+      const validOutbounds = this.outbounds.filter((_:Outbound, i:number) => this.outChecks[i] !== 2)
+      const success = await Data().save("outbounds", "newbulk", validOutbounds)
+      if (success) {
+        this.outbounds.forEach((_:Outbound, i:number) => { this.outChecks[i] = 1 })
+      } else {
+        this.outbounds.forEach((_:Outbound, i:number) => { this.outChecks[i] = 2 })
+      }
       this.loading = false
     }
   },

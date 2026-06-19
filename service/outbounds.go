@@ -62,6 +62,33 @@ func (s *OutboundService) Save(tx *gorm.DB, act string, data json.RawMessage) er
 	var err error
 
 	switch act {
+	case "newbulk":
+		var outboundList []json.RawMessage
+		err = json.Unmarshal(data, &outboundList)
+		if err != nil {
+			return err
+		}
+		for _, item := range outboundList {
+			var outbound model.Outbound
+			err = outbound.UnmarshalJSON(item)
+			if err != nil {
+				return err
+			}
+			if corePtr.IsRunning() {
+				configData, err := outbound.MarshalJSON()
+				if err != nil {
+					return err
+				}
+				err = corePtr.AddOutbound(configData)
+				if err != nil {
+					return err
+				}
+			}
+			err = tx.Save(&outbound).Error
+			if err != nil {
+				return err
+			}
+		}
 	case "new", "edit":
 		var outbound model.Outbound
 		err = outbound.UnmarshalJSON(data)
