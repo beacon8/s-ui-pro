@@ -167,6 +167,9 @@
           >
           </v-progress-linear>
         </template>
+        <template v-slot:item.limit="{ item }">
+          <div class="text-start" dir="ltr">{{ formatLimit(item) }}</div>
+        </template>
         <template v-slot:item.expiry="{ item }">
           <div class="text-start">
             <v-tooltip v-if="item.expiry>0" activator="parent" location="top" :text="new Date(item.expiry * 1000).toLocaleString(locale)" />
@@ -300,6 +303,7 @@ const headers = [
   { title: i18n.global.t('pages.inbounds'), key: 'inbounds', width: 10 },
   { title: i18n.global.t('actions.action'), key: 'actions', sortable: false },
   { title: i18n.global.t('stats.volume'), key: 'volume' },
+  { title: i18n.global.t('client.limit'), key: 'limit', sortable: false },
   { title: i18n.global.t('date.expiry'), key: 'expiry' },
   { title: i18n.global.t('online'), key: 'online' },
   { key: 'data-table-group', width: 0 },
@@ -420,5 +424,15 @@ const closeEditBulk = () => {
 
 const percent = (c: Client) => { return c.volume>0 ? Math.round((c.up+c.down) *100 / c.volume) : 0 }
 const percentColor = (c: Client) => { return (c.up+c.down) >= c.volume ? 'error' : percent(c)>90 ? 'warning' : 'success' }
+
+const formatLimit = (c: Client) => {
+  const up = c.upLimit ?? 0
+  const down = c.downLimit ?? 0
+  if (up == 0 && down == 0) return '-'
+  const unit = c.limitUnit == 'kbps' ? 'Kbps' : c.limitUnit == 'bps' ? 'bps' : 'Mbps'
+  if (up > 0 && down > 0) return `↑${up} / ↓${down} ${unit}`
+  if (up > 0) return `↑${up} ${unit}`
+  return `↓${down} ${unit}`
+}
 
 </script>

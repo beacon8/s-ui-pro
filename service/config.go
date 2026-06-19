@@ -121,8 +121,35 @@ func (s *ConfigService) StartCore() error {
 		logger.Error("start sing-box err:", err.Error())
 		return err
 	}
+	s.loadClientLimits()
 	logger.Info("sing-box started")
 	return nil
+}
+
+// loadClientLimits reloads all enabled clients' bandwidth limits into the
+// freshly started core's limiter. Called after each successful core start.
+func (s *ConfigService) loadClientLimits() {
+	box := corePtr.GetInstance()
+	if box == nil || box.LimiterTracker() == nil {
+		return
+	}
+	var clients []model.Client
+	err := database.GetDB().Model(model.Client{}).Where("enable = ?", true).
+		Select("name, up_limit, down_limit, limit_unit").Find(&clients).Error
+	if err != nil {
+		logger.Warning("load client limits err:", err.Error())
+		return
+	}
+	limits := make(map[string][2]int64, len(clients))
+	for _, c := range clients {
+		up := toBytesPerSec(c.UpLimit, c.LimitUnit)
+		down := toBytesPerSec(c.DownLimit, c.LimitUnit)
+		if up == 0 && down == 0 {
+			continue
+		}
+		limits[c.Name] = [2]int64{up, down}
+	}
+	box.LimiterTracker().BulkLoad(limits)
 }
 
 func (s *ConfigService) RestartCore() error {
@@ -162,6 +189,7 @@ func (s *ConfigService) restartCoreWithConfig(config json.RawMessage) error {
 		logger.Error("restart sing-box err (start):", err.Error())
 		return err
 	}
+	s.loadClientLimits()
 	logger.Info("sing-box restarted with new config")
 	return nil
 }

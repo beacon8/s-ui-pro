@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/admin8800/s-ui/core"
 	"github.com/admin8800/s-ui/database"
 	"github.com/admin8800/s-ui/database/model"
 	"github.com/admin8800/s-ui/logger"
@@ -16,6 +17,52 @@ import (
 )
 
 type ClientService struct{}
+
+// toBytesPerSec converts a limit value + unit into bytes per second (decimal).
+// 0 or negative returns 0 (unlimited). Default unit is mbps.
+func toBytesPerSec(value int64, unit string) int64 {
+	if value <= 0 {
+		return 0
+	}
+	switch strings.ToLower(unit) {
+	case "bps":
+		return value / 8
+	case "kbps":
+		return value * 1000 / 8
+	default: // mbps and unknown/empty
+		return value * 1_000_000 / 8
+	}
+}
+
+// limiterTracker returns the running core's limiter, or nil if core is down.
+func limiterTracker() *core.LimiterTracker {
+	if corePtr == nil {
+		return nil
+	}
+	box := corePtr.GetInstance()
+	if box == nil {
+		return nil
+	}
+	return box.LimiterTracker()
+}
+
+// applyClientLimit pushes a client's limit into the running limiter (no-op if core down).
+func applyClientLimit(c *model.Client) {
+	lt := limiterTracker()
+	if lt == nil {
+		return
+	}
+	lt.SetUserLimit(c.Name, toBytesPerSec(c.UpLimit, c.LimitUnit), toBytesPerSec(c.DownLimit, c.LimitUnit))
+}
+
+// removeClientLimit drops a client from the running limiter (no-op if core down).
+func removeClientLimit(name string) {
+	lt := limiterTracker()
+	if lt == nil {
+		return
+	}
+	lt.DeleteUser(name)
+}
 
 func (s *ClientService) Get(id string) (*[]model.Client, error) {
 	if id == "" {
@@ -39,7 +86,7 @@ func (s *ClientService) GetAll() (*[]model.Client, error) {
 	db := database.GetDB()
 	var clients []model.Client
 	err := db.Model(model.Client{}).
-		Select("`id`, `enable`, `name`, `desc`, `group`, `inbounds`, `up`, `down`, `volume`, `expiry`").
+		Select("`id`, `enable`, `name`, `desc`, `group`, `inbounds`, `up`, `down`, `volume`, `expiry`, `up_limit`, `down_limit`, `limit_unit`").
 		Scan(&clients).Error
 	if err != nil {
 		return nil, err
@@ -62,7 +109,13 @@ func (s *ClientService) Save(tx *gorm.DB, act string, data json.RawMessage, host
 		if err != nil {
 			return nil, err
 		}
+		var oldName string
 		if act == "edit" {
+			// Capture old name for limiter rename migration
+			var oldClient model.Client
+			if e := tx.Model(model.Client{}).Select("name").Where("id = ?", client.Id).First(&oldClient).Error; e == nil {
+				oldName = oldClient.Name
+			}
 			// Find changed inbounds
 			inboundIds, err = s.findInboundsChanges(tx, &client, false)
 			if err != nil {
@@ -78,6 +131,10 @@ func (s *ClientService) Save(tx *gorm.DB, act string, data json.RawMessage, host
 		if err != nil {
 			return nil, err
 		}
+		if oldName != "" && oldName != client.Name {
+			removeClientLimit(oldName)
+		}
+		applyClientLimit(&client)
 	case "addbulk":
 		var clients []*model.Client
 		err = json.Unmarshal(data, &clients)
@@ -96,13 +153,21 @@ func (s *ClientService) Save(tx *gorm.DB, act string, data json.RawMessage, host
 		if err != nil {
 			return nil, err
 		}
+		for _, client := range clients {
+			applyClientLimit(client)
+		}
 	case "editbulk":
 		var clients []*model.Client
 		err = json.Unmarshal(data, &clients)
 		if err != nil {
 			return nil, err
 		}
+		oldNames := make(map[uint]string, len(clients))
 		for _, client := range clients {
+			var oldClient model.Client
+			if e := tx.Model(model.Client{}).Select("name").Where("id = ?", client.Id).First(&oldClient).Error; e == nil {
+				oldNames[client.Id] = oldClient.Name
+			}
 			changedInboundIds, err := s.findInboundsChanges(tx, client, true)
 			if err != nil {
 				return nil, err
@@ -121,18 +186,26 @@ func (s *ClientService) Save(tx *gorm.DB, act string, data json.RawMessage, host
 		if err != nil {
 			return nil, err
 		}
+		for _, client := range clients {
+			if oldName, ok := oldNames[client.Id]; ok && oldName != "" && oldName != client.Name {
+				removeClientLimit(oldName)
+			}
+			applyClientLimit(client)
+		}
 	case "delbulk":
 		var ids []uint
 		err = json.Unmarshal(data, &ids)
 		if err != nil {
 			return nil, err
 		}
+		var delNames []string
 		for _, id := range ids {
 			var client model.Client
 			err = tx.Where("id = ?", id).First(&client).Error
 			if err != nil {
 				return nil, err
 			}
+			delNames = append(delNames, client.Name)
 			var clientInbounds []uint
 			err = json.Unmarshal(client.Inbounds, &clientInbounds)
 			if err != nil {
@@ -143,6 +216,9 @@ func (s *ClientService) Save(tx *gorm.DB, act string, data json.RawMessage, host
 		err = tx.Where("id in ?", ids).Delete(model.Client{}).Error
 		if err != nil {
 			return nil, err
+		}
+		for _, name := range delNames {
+			removeClientLimit(name)
 		}
 	case "del":
 		var id uint
@@ -163,6 +239,7 @@ func (s *ClientService) Save(tx *gorm.DB, act string, data json.RawMessage, host
 		if err != nil {
 			return nil, err
 		}
+		removeClientLimit(client.Name)
 	default:
 		return nil, common.NewErrorf("unknown action: %s", act)
 	}
@@ -425,6 +502,9 @@ func (s *ClientService) DepleteClients() ([]uint, error) {
 			return nil, err
 		}
 		LastUpdate = dt
+		for _, name := range users {
+			removeClientLimit(name)
+		}
 	}
 
 	return inboundIds, nil
@@ -433,6 +513,7 @@ func (s *ClientService) DepleteClients() ([]uint, error) {
 func (s *ClientService) ResetClients(tx *gorm.DB, dt int64) ([]uint, error) {
 	var err error
 	var resetClients, allClients []*model.Client
+	var reEnabled []*model.Client
 	var changes []model.Changes
 	var inboundIds []uint
 	// Set delay start without periodic reset
@@ -490,6 +571,7 @@ func (s *ClientService) ResetClients(tx *gorm.DB, dt int64) ([]uint, error) {
 			var clientInboundIds []uint
 			json.Unmarshal(client.Inbounds, &clientInboundIds)
 			inboundIds = common.UnionUintArray(inboundIds, clientInboundIds)
+			reEnabled = append(reEnabled, client)
 		}
 	}
 	allClients = append(allClients, resetClients...)
@@ -499,6 +581,9 @@ func (s *ClientService) ResetClients(tx *gorm.DB, dt int64) ([]uint, error) {
 		err = tx.Save(allClients).Error
 		if err != nil {
 			return nil, err
+		}
+		for _, client := range reEnabled {
+			applyClientLimit(client)
 		}
 	}
 

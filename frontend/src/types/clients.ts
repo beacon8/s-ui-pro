@@ -25,6 +25,9 @@ export interface Client {
   nextReset?: number
   totalUp?: number
   totalDown?: number
+  upLimit?: number
+  downLimit?: number
+  limitUnit?: 'mbps' | 'kbps' | 'bps'
 }
 
 const defaultClient: Client = {
@@ -45,6 +48,9 @@ const defaultClient: Client = {
   nextReset: 0,
   totalUp: 0,
   totalDown: 0,
+  upLimit: 0,
+  downLimit: 0,
+  limitUnit: 'mbps',
 }
 
 type Config = {

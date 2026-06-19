@@ -62,6 +62,17 @@
                   <v-switch color="primary" v-model="autoReset" :label="$t('client.autoReset')" hide-details></v-switch>
                 </v-col>
               </v-row>
+              <v-row>
+                <v-col cols="12" sm="6" md="4">
+                  <v-text-field v-model.number="client.upLimit" type="number" min="0" :label="$t('client.upLimit')" :suffix="limitSuffix" :hint="$t('client.zeroIsUnlimited')" persistent-hint></v-text-field>
+                </v-col>
+                <v-col cols="12" sm="6" md="4">
+                  <v-text-field v-model.number="client.downLimit" type="number" min="0" :label="$t('client.downLimit')" :suffix="limitSuffix" :hint="$t('client.zeroIsUnlimited')" persistent-hint></v-text-field>
+                </v-col>
+                <v-col cols="12" sm="6" md="4">
+                  <v-select v-model="client.limitUnit" :items="['mbps', 'kbps', 'bps']" :label="$t('client.limitUnit')" hide-details></v-select>
+                </v-col>
+              </v-row>
               <v-row v-if="id > 0">
                 <v-col cols="12" sm="6" md="4" class="d-flex flex-column">
                   <div class="d-flex justify-space-between align-center">
@@ -356,6 +367,13 @@ export default {
     },
     percent() :number { return this.client.volume>0 ? Math.round((this.client.up + this.client.down) *100 / this.client.volume) : 0 },
     percentColor() :string { return (this.client.up+this.client.down) >= this.client.volume ? 'error' : this.percent>90 ? 'warning' : 'success' },
+    limitSuffix() :string {
+      switch (this.client.limitUnit) {
+        case 'kbps': return 'Kbps'
+        case 'bps': return 'bps'
+        default: return 'Mbps'
+      }
+    },
   },
   watch: {
     visible(newValue) {

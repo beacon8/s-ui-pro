@@ -211,6 +211,11 @@ export default {
     autoReset: "Auto Reset",
     resetDays: "Reset Days",
     nextReset: "Next Reset",
+    upLimit: "Upload Limit",
+    downLimit: "Download Limit",
+    limitUnit: "Unit",
+    limit: "Limit",
+    zeroIsUnlimited: "0 means unlimited",
   },
   bulk: {
     order: "Order",

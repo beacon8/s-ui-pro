@@ -211,6 +211,11 @@ export default {
     autoReset: "自動重置",
     resetDays: "重置天數",
     nextReset: "下次重置",
+    upLimit: "上行限速",
+    downLimit: "下行限速",
+    limitUnit: "限速單位",
+    limit: "限速",
+    zeroIsUnlimited: "0 表示不限速",
   },
   bulk: {
     order: "排序",

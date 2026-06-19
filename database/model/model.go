@@ -43,6 +43,11 @@ type Client struct {
 	NextReset  int64 `json:"nextReset" form:"nextReset" gorm:"default:0;not null"`
 	TotalUp    int64 `json:"totalUp" form:"totalUp" gorm:"default:0;not null"`
 	TotalDown  int64 `json:"totalDown" form:"totalDown" gorm:"default:0;not null"`
+
+	// Per-user bandwidth limit (0 = unlimited)
+	UpLimit   int64  `json:"upLimit" form:"upLimit" gorm:"default:0;not null"`
+	DownLimit int64  `json:"downLimit" form:"downLimit" gorm:"default:0;not null"`
+	LimitUnit string `json:"limitUnit" form:"limitUnit" gorm:"default:'mbps';not null"`
 }
 
 type Stats struct {

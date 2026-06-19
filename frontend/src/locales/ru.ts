@@ -212,6 +212,11 @@ export default {
     autoReset: "Авто сброс",
     resetDays: "Дней до сброса",
     nextReset: "Следующий сброс",
+    upLimit: "Лимит отдачи",
+    downLimit: "Лимит загрузки",
+    limitUnit: "Единица",
+    limit: "Лимит",
+    zeroIsUnlimited: "0 — без ограничений",
   },
   bulk: {
     order: "Порядок",

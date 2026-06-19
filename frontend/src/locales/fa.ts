@@ -211,6 +211,11 @@ export default {
     autoReset: "بازنشانی خودکار",
     resetDays: "روزهای بازنشانی",
     nextReset: "بازنشانی بعدی",
+    upLimit: "محدودیت آپلود",
+    downLimit: "محدودیت دانلود",
+    limitUnit: "واحد",
+    limit: "محدودیت سرعت",
+    zeroIsUnlimited: "۰ یعنی نامحدود",
   },
   bulk: {
     order: "ترتیب",

@@ -211,6 +211,11 @@ export default {
     autoReset: "Tự động đặt lại",
     resetDays: "Số ngày đặt lại",
     nextReset: "Đặt lại lần sau",
+    upLimit: "Giới hạn tải lên",
+    downLimit: "Giới hạn tải xuống",
+    limitUnit: "Đơn vị",
+    limit: "Giới hạn",
+    zeroIsUnlimited: "0 nghĩa là không giới hạn",
   },
   bulk: {
     order: "Sắp xếp",

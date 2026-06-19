@@ -51,6 +51,7 @@ type Box struct {
 	internalService []adapter.LifecycleService
 	statsTracker    *StatsTracker
 	connTracker     *ConnTracker
+	limiterTracker  *LimiterTracker
 	done            chan struct{}
 }
 
@@ -330,6 +331,8 @@ func NewBox(options Options) (*Box, error) {
 	connTracker := NewConnTracker()
 	router.AppendTracker(statsTracker)
 	router.AppendTracker(connTracker)
+	limiterTracker := NewLimiterTracker()
+	router.AppendTracker(limiterTracker)
 
 	if needCacheFile {
 		cacheFile := cachefile.New(ctx, sbCommon.PtrValueOrDefault(experimentalOptions.CacheFile))
@@ -391,6 +394,7 @@ func NewBox(options Options) (*Box, error) {
 		internalService: internalServices,
 		statsTracker:    statsTracker,
 		connTracker:     connTracker,
+		limiterTracker:  limiterTracker,
 		done:            make(chan struct{}),
 	}, nil
 }
@@ -556,6 +560,9 @@ func (s *Box) Close() error {
 	if s.connTracker != nil {
 		s.connTracker.Reset()
 	}
+	if s.limiterTracker != nil {
+		s.limiterTracker.Reset()
+	}
 	return err
 }
 
@@ -589,4 +596,8 @@ func (s *Box) StatsTracker() *StatsTracker {
 
 func (s *Box) ConnTracker() *ConnTracker {
 	return s.connTracker
+}
+
+func (s *Box) LimiterTracker() *LimiterTracker {
+	return s.limiterTracker
 }
