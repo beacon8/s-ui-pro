@@ -66,6 +66,7 @@ var defaultValueMap = map[string]string{
 	"subJsonExt":    "",
 	"subClashExt":   "",
 	"subApiKey":     "",
+	"subApiPath":    "/subs_" + common.Random(8) + "/",
 	"config":        defaultConfig,
 	"version":       config.GetVersion(),
 }
@@ -384,7 +385,8 @@ func (s *SettingService) Save(tx *gorm.DB, data json.RawMessage) error {
 
 		// Correct Pathes start and ends with `/`
 		if key == "webPath" ||
-			key == "subPath" {
+			key == "subPath" ||
+			key == "subApiPath" {
 			if !strings.HasPrefix(obj, "/") {
 				obj = "/" + obj
 			}
@@ -418,6 +420,20 @@ func (s *SettingService) GetSubClashExt() (string, error) {
 
 func (s *SettingService) GetSubApiKey() (string, error) {
 	return s.getString("subApiKey")
+}
+
+func (s *SettingService) GetSubApiPath() (string, error) {
+	subApiPath, err := s.getString("subApiPath")
+	if err != nil {
+		return "", err
+	}
+	if !strings.HasPrefix(subApiPath, "/") {
+		subApiPath = "/" + subApiPath
+	}
+	if !strings.HasSuffix(subApiPath, "/") {
+		subApiPath += "/"
+	}
+	return subApiPath, nil
 }
 
 func (s *SettingService) fileExists(path string) error {

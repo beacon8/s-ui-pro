@@ -27,17 +27,17 @@ func (s *SubHandler) initRouter(g *gin.RouterGroup) {
 	g.HEAD("/:subid", s.subHeaders)
 }
 
-// InitBatchRouter 挂载聚合订阅 API（独立于 /sub/:subid）。
+// InitBatchRouter 挂载聚合订阅 API（独立于 /sub/:subid，路径可自定义）。
 func (s *SubHandler) InitBatchRouter(g *gin.RouterGroup) {
-	g.GET("/search", s.batchSearch)
+	g.GET("", s.batchSearch)
 }
 
 func (s *SubHandler) batchSearch(c *gin.Context) {
-	// 1. 鉴权
+	// 1. 鉴权：路径已是秘密，失败统一 404，避免暴露接口存在
 	expectedKey, _ := s.SettingService.GetSubApiKey()
 	if expectedKey != "" {
 		if c.Query("key") != expectedKey {
-			c.String(401, "unauthorized")
+			c.String(404, "404 page not found")
 			return
 		}
 	}

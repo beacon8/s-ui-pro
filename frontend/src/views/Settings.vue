@@ -129,6 +129,17 @@
         <v-row>
           <v-col cols="12" sm="6" md="8">
             <v-text-field
+              v-model="settings.subApiPath"
+              :label="$t('setting.subApiPath')"
+              :hint="$t('setting.subApiPathHint')"
+              persistent-hint
+              density="comfortable"
+            />
+          </v-col>
+        </v-row>
+        <v-row>
+          <v-col cols="12" sm="6" md="8">
+            <v-text-field
               v-model="subApiKey"
               :label="$t('setting.subApiKey')"
               :hint="$t('setting.subApiKeyHint')"
@@ -191,6 +202,7 @@ const settings = ref({
   subJsonExt: "",
   subClashExt: "",
   subApiKey: "",
+  subApiPath: "/subs/",
 })
 
 onMounted(async () => {
