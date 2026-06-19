@@ -1,6 +1,6 @@
 # S-UI 后端 REST API 文档
 
-> 版本：v1.4.2 ｜ 后端框架：Gin ｜ 数据格式：JSON（除特殊说明外）
+> 版本：v1.4.6 ｜ 后端框架：Gin ｜ 数据格式：JSON（除特殊说明外）
 
 本文档覆盖 S-UI 面板后端的全部可用接口。所有业务接口分为两套：
 
@@ -505,7 +505,62 @@
 
 ---
 
-## 十三、接口组差异（/api vs /apiv2）
+## 十三、订阅服务（独立端口）
+
+> ⚠️ 订阅服务**独立于面板 `/api`**，运行在单独端口（设置项 `subPort`，默认 `2096`），无 Cookie/Token 鉴权。下文 URL 以 `http://<host>:<subPort>` 为基址。
+> 相关设置项：`subPort`(2096) / `subPath`(`/sub/`) / `subApiPath`(默认随机 `/subs_xxxxxxxx/`) / `subApiKey`(默认空) / `subDomain`(限制访问域名，可空)。
+
+### 13.1 单用户订阅
+
+`GET {subPath}{subId}` — 默认 `GET /sub/<subId>`
+
+| 查询参数 | 取值 | 说明 |
+|----------|------|------|
+| format | 缺省 / `json` / `clash` | 缺省=通用 base64 订阅；`json`=sing-box；`clash`=Clash YAML |
+
+- `subId` 为客户端的订阅标识。
+- `HEAD /sub/<subId>`：只返回订阅响应头，不返回正文。
+- 响应头：`Subscription-Userinfo`（流量/到期）、`Profile-Update-Interval`、`Profile-Title`。
+
+### 13.2 聚合订阅 API（按条件批量聚合）
+
+`GET {subApiPath}` — 默认 `GET /subs_xxxxxxxx/`
+
+把**多个客户端**聚合成一份 sing-box JSON 订阅。多客户端的 outbound tag 会加前缀防冲突，响应头流量累加、到期取最近。
+
+| 查询参数 | 说明 |
+|----------|------|
+| key | 访问密钥；设置项 `subApiKey` 非空时**必填且须匹配**，否则返回 `404`（伪装成不存在，防扫描） |
+| format | 仅支持空或 `json`；其他值返回 `400 unsupported format` |
+| username | 按客户端名**精确**匹配 |
+| name | 按客户端名**模糊**匹配（忽略大小写） |
+| group | 按分组精确匹配 |
+
+筛选规则：
+
+- `username`、`name`、`group` 可组合；`username` 与 `name` 同时存在时 `username` 优先。
+- 三者全空 = 返回**全部启用客户端**。
+- **仅返回 `enable=true` 的客户端**。
+- 匹配结果超过 **2000** 条返回 `400`（提示收窄筛选）；无匹配返回 `404`。
+
+调用示例：
+
+```bash
+# 全部启用用户聚合（subApiKey 为空时）
+curl 'http://1.2.3.4:2096/subs_ab12cd34/'
+
+# 带密钥 + 按分组聚合
+curl 'http://1.2.3.4:2096/subs_ab12cd34/?key=<subApiKey>&group=vip'
+
+# 模糊匹配用户名
+curl 'http://1.2.3.4:2096/subs_ab12cd34/?name=test&format=json'
+```
+
+> 安全提示：`subApiPath` 默认随机生成即为防扫描第一道防线；生产环境建议同时设置 `subApiKey`。
+
+---
+
+## 十四、接口组差异（/api vs /apiv2）
 
 `/apiv2` 是 `/api` 的子集，**不包含会话与账户管理类动作**。
 
@@ -527,7 +582,7 @@
 
 ---
 
-## 十四、错误处理
+## 十五、错误处理
 
 - HTTP 状态码恒为 `200`（文件流接口和 singbox-config 失败例外）。
 - 失败时 `success=false`，`msg` 格式为 `"动作: 错误详情"`。
