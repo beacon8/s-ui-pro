@@ -63,6 +63,11 @@ func (s *Server) initRouter() (*gin.Engine, error) {
 	g := engine.Group(subPath)
 	NewSubHandler(g)
 
+	// 聚合订阅 API，挂在固定路径 /subs（不受 subPath 影响）
+	batchGroup := engine.Group("/subs")
+	batchHandler := &SubHandler{}
+	batchHandler.InitBatchRouter(batchGroup)
+
 	return engine, nil
 }
 

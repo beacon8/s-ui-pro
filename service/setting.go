@@ -65,6 +65,7 @@ var defaultValueMap = map[string]string{
 	"subURI":        "",
 	"subJsonExt":    "",
 	"subClashExt":   "",
+	"subApiKey":     "",
 	"config":        defaultConfig,
 	"version":       config.GetVersion(),
 }
@@ -413,6 +414,10 @@ func (s *SettingService) GetSubJsonExt() (string, error) {
 
 func (s *SettingService) GetSubClashExt() (string, error) {
 	return s.getString("subClashExt")
+}
+
+func (s *SettingService) GetSubApiKey() (string, error) {
+	return s.getString("subApiKey")
 }
 
 func (s *SettingService) fileExists(path string) error {

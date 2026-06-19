@@ -631,3 +631,36 @@ func (s *ClientService) findInboundsChanges(tx *gorm.DB, client *model.Client, f
 
 	return diffInbounds, nil
 }
+
+// ClientFilter 聚合订阅查询条件；所有字段为空表示不限。
+type ClientFilter struct {
+	NameLike string // 模糊匹配（忽略大小写）
+	Name     string // 精确匹配；与 NameLike 同时存在时优先
+	Group    string // 分组精确匹配
+}
+
+const batchSearchLimit = 2000
+
+// SearchClients 用于聚合订阅 API。仅返回 enable=true 的 client；超过 batchSearchLimit 返回错误。
+func (s *ClientService) SearchClients(f ClientFilter) ([]*model.Client, error) {
+	db := database.GetDB()
+	tx := db.Model(&model.Client{}).Where("enable = ?", true)
+
+	if f.Name != "" {
+		tx = tx.Where("name = ?", f.Name)
+	} else if f.NameLike != "" {
+		tx = tx.Where("LOWER(name) LIKE LOWER(?)", "%"+f.NameLike+"%")
+	}
+	if f.Group != "" {
+		tx = tx.Where(`"group" = ?`, f.Group)
+	}
+
+	var clients []*model.Client
+	if err := tx.Limit(batchSearchLimit + 1).Find(&clients).Error; err != nil {
+		return nil, err
+	}
+	if len(clients) > batchSearchLimit {
+		return nil, common.NewErrorf("too many matches (>%d), narrow your filter", batchSearchLimit)
+	}
+	return clients, nil
+}

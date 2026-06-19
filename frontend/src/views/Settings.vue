@@ -126,6 +126,21 @@
             <v-text-field v-model="settings.subURI" :label="$t('setting.subUri')" hide-details></v-text-field>
           </v-col>
         </v-row>
+        <v-row>
+          <v-col cols="12" sm="6" md="8">
+            <v-text-field
+              v-model="subApiKey"
+              :label="$t('setting.subApiKey')"
+              :hint="$t('setting.subApiKeyHint')"
+              persistent-hint
+              :type="showApiKey ? 'text' : 'password'"
+              :append-inner-icon="showApiKey ? 'mdi-eye-off' : 'mdi-eye'"
+              @click:append-inner="showApiKey = !showApiKey"
+              clearable
+              density="comfortable"
+            />
+          </v-col>
+        </v-row>
       </v-window-item>
 
       <v-window-item value="t3">
@@ -175,6 +190,7 @@ const settings = ref({
 	subURI: "",
   subJsonExt: "",
   subClashExt: "",
+  subApiKey: "",
 })
 
 onMounted(async () => {
@@ -251,6 +267,12 @@ const subEncode = computed({
 const subShowInfo = computed({
   get: () => { return settings.value.subShowInfo == "true" },
   set: (v:boolean) => { settings.value.subShowInfo = v ? "true" : "false" }
+})
+
+const showApiKey = ref(false)
+const subApiKey = computed({
+  get: () => settings.value.subApiKey ?? "",
+  set: (v: string) => { settings.value.subApiKey = v ?? "" }
 })
 
 const webPort = computed({

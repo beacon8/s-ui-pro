@@ -184,6 +184,8 @@ export default {
     path: "Đường dẫn mặc định",
     update: "Thời gian cập nhật tự động",
     subUri: "URI đăng ký",
+    subApiKey: "Khóa API Đăng ký gộp",
+    subApiKeyHint: "Để trống để tắt xác thực /subs/search",
     jsonSub: "Đăng ký JSON",
     toDirect: "Chuyển hướng tới Trực tiếp",
     toBlock: "Chuyển hướng tới Chặn",

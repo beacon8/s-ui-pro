@@ -184,6 +184,8 @@ export default {
     path: "Default Path",
     update: "Automatic Update Time",
     subUri: "Subscription URI",
+    subApiKey: "Batch Subscription API Key",
+    subApiKeyHint: "Leave empty to disable auth on /subs/search",
     jsonSub: "JSON Subscription",
     toDirect: "Route to Direct",
     toBlock: "Route to Block",

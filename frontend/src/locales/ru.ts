@@ -185,6 +185,8 @@ export default {
     path: "Путь по умолчанию",
     update: "Время автоматического обновления",
     subUri: "URI подписки",
+    subApiKey: "API-ключ агрегированной подписки",
+    subApiKeyHint: "Оставьте пустым, чтобы отключить аутентификацию /subs/search",
     jsonSub: "JSON подписка",
     toDirect: "Маршрутизация на Direct",
     toBlock: "Маршрутизация на Block",

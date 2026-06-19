@@ -1,6 +1,8 @@
 package sub
 
 import (
+	"strings"
+
 	"github.com/admin8800/s-ui/logger"
 	"github.com/admin8800/s-ui/service"
 
@@ -12,6 +14,7 @@ type SubHandler struct {
 	SubService
 	JsonService
 	ClashService
+	BatchJsonService
 }
 
 func NewSubHandler(g *gin.RouterGroup) {
@@ -22,6 +25,83 @@ func NewSubHandler(g *gin.RouterGroup) {
 func (s *SubHandler) initRouter(g *gin.RouterGroup) {
 	g.GET("/:subid", s.subs)
 	g.HEAD("/:subid", s.subHeaders)
+}
+
+// InitBatchRouter 挂载聚合订阅 API（独立于 /sub/:subid）。
+func (s *SubHandler) InitBatchRouter(g *gin.RouterGroup) {
+	g.GET("/search", s.batchSearch)
+}
+
+func (s *SubHandler) batchSearch(c *gin.Context) {
+	// 1. 鉴权
+	expectedKey, _ := s.SettingService.GetSubApiKey()
+	if expectedKey != "" {
+		if c.Query("key") != expectedKey {
+			c.String(401, "unauthorized")
+			return
+		}
+	}
+
+	// 2. 校验 format
+	format := c.Query("format")
+	if format != "" && format != "json" {
+		c.String(400, "unsupported format")
+		return
+	}
+
+	// 3. 构造 filter
+	filter := service.ClientFilter{
+		Name:     c.Query("username"),
+		NameLike: c.Query("name"),
+		Group:    c.Query("group"),
+	}
+
+	clients, err := s.BatchJsonService.ClientService.SearchClients(filter)
+	if err != nil {
+		logger.Error(err)
+		c.String(400, err.Error())
+		return
+	}
+	if len(clients) == 0 {
+		c.String(404, "no matching clients")
+		return
+	}
+
+	title := buildBatchTitle(filter)
+	result, headers, err := s.BatchJsonService.GetBatchJson(clients, title)
+	if err != nil || result == nil {
+		logger.Error(err)
+		c.String(500, "Error!")
+		return
+	}
+
+	s.addHeaders(c, headers)
+	c.String(200, *result)
+}
+
+func buildBatchTitle(f service.ClientFilter) string {
+	switch {
+	case f.Name != "" && f.NameLike == "" && f.Group == "":
+		return "user:" + f.Name
+	case f.NameLike != "" && f.Name == "" && f.Group == "":
+		return "search:" + f.NameLike
+	case f.Group != "" && f.Name == "" && f.NameLike == "":
+		return "group:" + f.Group
+	case f.Name == "" && f.NameLike == "" && f.Group == "":
+		return "all"
+	}
+	// 组合
+	parts := []string{}
+	if f.Name != "" {
+		parts = append(parts, "username="+f.Name)
+	}
+	if f.NameLike != "" {
+		parts = append(parts, "name="+f.NameLike)
+	}
+	if f.Group != "" {
+		parts = append(parts, "group="+f.Group)
+	}
+	return "batch:" + strings.Join(parts, ",")
 }
 
 func (s *SubHandler) subs(c *gin.Context) {

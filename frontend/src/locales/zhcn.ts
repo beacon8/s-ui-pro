@@ -184,6 +184,8 @@ export default {
     path: "默认路径",
     update: "自动更新时间",
     subUri: "订阅 URI",
+    subApiKey: "聚合订阅 API 密钥",
+    subApiKeyHint: "留空则 /subs/search 接口不鉴权",
     jsonSub: "JSON 订阅",
     toDirect: "路由到直连",
     toBlock: "路由到阻止",

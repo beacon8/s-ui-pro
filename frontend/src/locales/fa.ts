@@ -184,6 +184,8 @@ export default {
     path: "مسیر پیشفرض",
     update: "زمان بروزرسانی خودکار",
     subUri: "آدرس نهایی سابسکریپشن",
+    subApiKey: "کلید API اشتراک تجمیعی",
+    subApiKeyHint: "برای غیرفعال‌کردن احراز هویت /subs/search خالی بگذارید",
     jsonSub: "سابسکریپشن JSON",
     toDirect: "هدایت مستقیم",
     toBlock: "بستن مسیر",
