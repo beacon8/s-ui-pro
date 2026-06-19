@@ -234,12 +234,16 @@
 
 ```json
 [
-  { "enable": true, "name": "u1", "config": { ... }, "inbounds": [1,2] },
-  { "enable": true, "name": "u2", "config": { ... }, "inbounds": [1] }
+  { "enable": true, "name": "u1", "config": { ... }, "inbounds": [1,2],
+    "volume": 0, "expiry": 0,
+    "upLimit": 10, "downLimit": 50, "limitUnit": "mbps" },
+  { "enable": true, "name": "u2", "config": { ... }, "inbounds": [1],
+    "upLimit": 0, "downLimit": 0, "limitUnit": "mbps" }
 ]
 ```
 
 > 数组内所有客户端共用第一个元素的 `inbounds` 作为绑定入站判定。
+> 限速字段 `upLimit` / `downLimit` / `limitUnit` 在批量新建时即生效（`0=不限速`，单位 `mbps`/`kbps`/`bps`）；字段含义同 4.3 客户端对象表。
 
 #### ② clients - editbulk（批量编辑客户端）
 
@@ -247,10 +251,12 @@
 
 ```json
 [
-  { "id": 5, "name": "u1", "upLimit": 10, "limitUnit": "mbps", ... },
-  { "id": 6, "name": "u2", "volume": 0, ... }
+  { "id": 5, "name": "u1", "upLimit": 10, "downLimit": 50, "limitUnit": "mbps" },
+  { "id": 6, "name": "u2", "volume": 0, "upLimit": 0, "downLimit": 0, "limitUnit": "mbps" }
 ]
 ```
+
+> 限速字段 `upLimit` / `downLimit` / `limitUnit` 在批量编辑时即时生效（含改名迁移、停用→启用恢复限速）；`0=不限速`。
 
 #### ③ clients - delbulk（批量删除客户端）
 
