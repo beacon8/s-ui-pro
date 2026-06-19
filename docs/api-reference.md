@@ -158,6 +158,42 @@
 **变更记录** `GET /api/changes?a=<操作者>&k=<键>&c=<条数>`
 - `a`：操作者用户名（可选）；`k`：变更对象键（可选）；`c`：条数。
 
+**用户流量排行** `GET /api/topUsers`
+
+按流量返回 Top N 客户端，支持累计排行与时段排行。**被禁用客户端也参与排行**（不过滤 enable）。
+
+| 参数 | 取值 | 默认 | 说明 |
+|------|------|------|------|
+| period | `total` / `1h` / `24h` / `7d` / `30d` | total | `total`=读 clients 表累计；其余=聚合 stats 表对应时间窗口 |
+| direction | `both` / `up` / `down` | both | 服务端排序字段：both→合计、up→上行、down→下行 |
+| limit | 整数 1..100 | 10 | 返回条数；越界自动夹紧到 [1,100]，非数字回落 10 |
+
+- 非法 `period`/`direction` 返回 `{"success":false,"msg":"invalid period: xxx"}`。
+- 时段排行依赖 `stats` 表，其保留天数由设置项 `trafficAge` 决定（接口本身不读/不改）；若 `trafficAge=7`，则 `period=30d` 实际只有 7 天数据。
+- `period=total` 口径为 `clients.up/down`（周期重置时会归零），非自创建以来的真累计。
+
+响应 `obj` 为数组，已按 direction 服务端排序：
+
+```json
+{
+  "success": true,
+  "msg": "",
+  "obj": [
+    { "name": "alice", "up": 12345678, "down": 87654321, "total": 100000000 },
+    { "name": "bob",   "up": 123456,   "down": 4567890,  "total": 4691346 }
+  ]
+}
+```
+
+| 字段 | 说明 |
+|------|------|
+| name | 客户端名（即 sing-box 用户 tag） |
+| up | 上行字节 |
+| down | 下行字节 |
+| total | up + down，服务端预算 |
+
+> 同样提供 `GET /apiv2/topUsers`（Token 鉴权），参数与响应一致。仅 GET，无 POST。
+
 ---
 
 ## 四、统一保存接口（核心）
@@ -477,6 +513,7 @@
 | importdb / importRules | ✅ | ✅ |
 | load / 各资源加载 / users / settings | ✅ | ✅ |
 | stats / status / onlines / logs / changes | ✅ | ✅ |
+| topUsers | ✅ | ✅ |
 | keypairs / getdb / checkOutbound | ✅ | ✅ |
 
 > `/apiv2` 调用方式：在以上共有接口的路径中把 `/api/` 换成 `/apiv2/`，并在请求头加 `Token: <令牌>`。
