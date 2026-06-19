@@ -614,6 +614,8 @@ export default {
     },
   },
   stats: {
+    topUsers: "برترین کاربران",
+    topUsersSubtitle: "۱۰ کاربر برتر ۲۴ ساعت اخیر",
     upload: "آپلود",
     download: "دانلود",
     volume: "حجم",

@@ -615,6 +615,8 @@ export default {
     },
   },
   stats: {
+    topUsers: "Топ пользователей",
+    topUsersSubtitle: "Топ 10 за последние 24 часа",
     upload: "Загрузка",
     download: "Скачивание",
     volume: "Объем",

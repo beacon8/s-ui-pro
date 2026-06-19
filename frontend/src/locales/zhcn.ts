@@ -614,6 +614,8 @@ export default {
     },
   },
   stats: {
+    topUsers: "流量排行",
+    topUsersSubtitle: "近 24 小时流量 Top 10",
     upload: "上传",
     download: "下载",
     volume: "流量",

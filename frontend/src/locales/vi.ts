@@ -614,6 +614,8 @@ export default {
     },
   },
   stats: {
+    topUsers: "Top người dùng",
+    topUsersSubtitle: "Top 10 trong 24h qua",
     upload: "Tải lên",
     download: "Tải xuống",
     volume: "Thể tích",

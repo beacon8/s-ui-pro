@@ -35,6 +35,11 @@
     :tag="stats.tag"
     @close="closeStats"
   />
+  <TopUsers
+    v-model="topUsersModal"
+    :visible="topUsersModal"
+    @close="closeTopUsers"
+  />
   <v-row justify="center" align="center">
     <v-col cols="auto">
       <v-btn color="primary" @click="showModal(0)">{{ $t('actions.add') }}</v-btn>
@@ -125,6 +130,12 @@
           </v-card-actions>
         </v-card>
       </v-menu>
+    </v-col>
+    <v-col cols="auto">
+      <v-btn variant="text" icon @click="showTopUsers" v-if="Data().enableTraffic">
+        <v-icon icon="mdi-trophy" color="primary" />
+        <v-tooltip activator="parent" location="top" :text="$t('stats.topUsers')"></v-tooltip>
+      </v-btn>
     </v-col>
   </v-row>
   <v-row>
@@ -248,6 +259,7 @@ import ClientAddBulk from '@/layouts/modals/ClientAddBulk.vue'
 import ClientEditBulk from '@/layouts/modals/ClientEditBulk.vue'
 import QrCode from '@/layouts/modals/QrCode.vue'
 import Stats from '@/layouts/modals/Stats.vue'
+import TopUsers from '@/layouts/modals/TopUsers.vue'
 import { Client } from '@/types/clients'
 import { computed, ref } from 'vue'
 import { HumanReadable } from '@/plugins/utils'
@@ -363,6 +375,10 @@ const showStats = (tag: string) => {
 const closeStats = () => {
   stats.value.visible = false
 }
+
+const topUsersModal = ref(false)
+const showTopUsers = () => { topUsersModal.value = true }
+const closeTopUsers = () => { topUsersModal.value = false }
 
 const doFilter = () => {
   let filteredClients = clients.value.slice()

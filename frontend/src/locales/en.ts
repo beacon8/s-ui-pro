@@ -616,6 +616,8 @@ export default {
     },
   },
   stats: {
+    topUsers: "Top Users",
+    topUsersSubtitle: "Top 10 by traffic in last 24h",
     upload: "Upload",
     download: "Download",
     volume: "Volume",
