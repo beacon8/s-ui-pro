@@ -230,7 +230,9 @@
 
 #### ① clients - addbulk（批量新建客户端）
 
-`data` 为**客户端对象数组**：
+`data` 为**客户端对象数组**。每个元素的字段与 4.3「单条客户端对象」完全一致（含限速字段）。
+
+精简示例：
 
 ```json
 [
@@ -242,8 +244,44 @@
 ]
 ```
 
+单个元素的完整字段示例（数组里每个对象都长这样）：
+
+```json
+{
+  "enable": true,
+  "name": "u1",
+  "config": {
+    "vless": { "name": "u1", "uuid": "xxxx-xxxx-xxxx", "flow": "xtls-rprx-vision" },
+    "trojan": { "name": "u1", "password": "xxxx" }
+  },
+  "inbounds": [1, 2],
+  "links": [],
+  "volume": 0,
+  "expiry": 0,
+  "up": 0,
+  "down": 0,
+  "desc": "",
+  "group": "",
+  "delayStart": false,
+  "autoReset": false,
+  "resetDays": 0,
+  "upLimit": 10,
+  "downLimit": 50,
+  "limitUnit": "mbps"
+}
+```
+
+实际 HTTP 请求（`application/x-www-form-urlencoded`，`data` 为上面数组 JSON 序列化后的字符串）：
+
+```bash
+curl -b cookie.txt -X POST 'http://127.0.0.1:2095/app/api/save' \
+  --data-urlencode 'object=clients' \
+  --data-urlencode 'action=addbulk' \
+  --data-urlencode 'data=[{"enable":true,"name":"u1","config":{"vless":{"name":"u1","uuid":"...","flow":"xtls-rprx-vision"}},"inbounds":[1,2],"volume":0,"expiry":0,"upLimit":10,"downLimit":50,"limitUnit":"mbps"}]'
+```
+
 > 数组内所有客户端共用第一个元素的 `inbounds` 作为绑定入站判定。
-> 限速字段 `upLimit` / `downLimit` / `limitUnit` 在批量新建时即生效（`0=不限速`，单位 `mbps`/`kbps`/`bps`）；字段含义同 4.3 客户端对象表。
+> 限速字段 `upLimit` / `downLimit` / `limitUnit` 在批量新建时即生效（`0=不限速`，单位 `mbps`/`kbps`/`bps`）；后端对数组每个元素调用限速器写入，请求体处理与单条 `new` 完全一致。
 
 #### ② clients - editbulk（批量编辑客户端）
 
