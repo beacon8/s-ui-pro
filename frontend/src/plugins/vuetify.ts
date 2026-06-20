@@ -49,6 +49,12 @@ export default createVuetify({
     VCardText: {
       class: 'pa-4',
     },
+    VCardTitle: {
+      class: 'px-4 py-3',
+    },
+    VCardActions: {
+      class: 'px-4 py-3',
+    },
   },
   theme: {
     defaultTheme: localStorage.getItem('theme') ?? 'system',
@@ -62,7 +68,8 @@ export default createVuetify({
           warning: '#faad14',
           success: '#52c41a',
           info: '#1677ff',
-          background: '#f5f5f5',
+          // Antd 实际页面背景，比 #f5f5f5 更深，让白色卡片更突出
+          background: '#f0f2f5',
           surface: '#ffffff',
         },
       },

@@ -15,47 +15,48 @@
           type="text, image, divider, text, image"
           v-if="loading"
         ></v-skeleton-loader>
-      <v-card-text style="overflow-y: auto; padding: 0" :hidden="loading">
+      <v-card-text style="overflow-y: auto;" :hidden="loading">
         <v-tabs
           v-model="tab"
           density="compact"
           fixed-tabs
           align-tabs="center"
+          class="mx-n5"
         >
           <v-tab value="sub">{{ $t('setting.sub') }}</v-tab>
           <v-tab value="link">{{ $t('client.links') }}</v-tab>
         </v-tabs>
-        <v-window v-model="tab" style="margin-top: 10px;">
-          <v-window-item value="sub">
-            <v-row>
+        <v-window v-model="tab" style="margin-top: 16px;">
+          <v-window-item value="sub" class="px-1 pb-2">
+            <v-row class="mb-4">
               <v-col style="text-align: center;">
-                <v-chip>{{ $t('setting.sub') }}</v-chip><br />
+                <v-chip class="mb-2">{{ $t('setting.sub') }}</v-chip><br />
                 <QrcodeVue :value="clientSub" :size="size" @click="copyToClipboard(clientSub)" :margin="1" style="border-radius: 1rem; cursor: copy;" />
               </v-col>
             </v-row>
-            <v-row>
+            <v-row class="mb-4">
               <v-col style="text-align: center;">
-                <v-chip>{{ $t('setting.jsonSub') }}</v-chip><br />
+                <v-chip class="mb-2">{{ $t('setting.jsonSub') }}</v-chip><br />
                 <QrcodeVue :value="clientSub + '?format=json'" :size="size" @click="copyToClipboard(clientSub + '?format=json')" :margin="1" style="border-radius: 1rem; cursor: copy;" />
               </v-col>
             </v-row>
-            <v-row>
+            <v-row class="mb-4">
               <v-col style="text-align: center;">
-                <v-chip>{{ $t('setting.clashSub') }}</v-chip><br />
+                <v-chip class="mb-2">{{ $t('setting.clashSub') }}</v-chip><br />
                 <QrcodeVue :value="clientSub + '?format=clash'" :size="size" @click="copyToClipboard(clientSub + '?format=clash')" :margin="1" style="border-radius: 1rem; cursor: copy;" />
               </v-col>
             </v-row>
-            <v-row>
+            <v-row class="mb-2">
               <v-col style="text-align: center;">
-                <v-chip>SING-BOX (scan only)</v-chip><br />
+                <v-chip class="mb-2">SING-BOX (scan only)</v-chip><br />
                 <QrcodeVue :value="singbox" :size="size" :margin="1" style="border-radius: .8rem; cursor: not-allowed;" />
               </v-col>
             </v-row>
           </v-window-item>
-          <v-window-item value="link">
-            <v-row v-for="l in clientLinks">
+          <v-window-item value="link" class="px-1 pb-2">
+            <v-row v-for="l in clientLinks" class="mb-4">
               <v-col style="text-align: center;">
-                <v-chip>{{ l.remark?? $t('client.' + l.type) }}</v-chip><br />
+                <v-chip class="mb-2">{{ l.remark?? $t('client.' + l.type) }}</v-chip><br />
                 <QrcodeVue :value="l.uri" :size="size" @click="copyToClipboard(l.uri)" :margin="1" style="border-radius: .5rem; cursor: copy;" />
               </v-col>
             </v-row>

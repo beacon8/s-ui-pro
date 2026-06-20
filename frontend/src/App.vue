@@ -34,23 +34,14 @@ document.title = "S-UI " + document.location.hostname
 
 /* ===== Ant Design 风格全局覆盖 ===== */
 
-/* 卡片：Antd 风格边框 + 柔和阴影 + 充足内边距 */
+/* 卡片：Antd 风格边框 + 柔和阴影 */
 .v-card {
   border-color: #f0f0f0 !important;
   box-shadow: 0 1px 2px -2px rgba(0,0,0,0.08), 0 3px 6px 0 rgba(0,0,0,0.06) !important;
+  overflow: hidden;
 }
 .v-card--variant-elevated {
   box-shadow: 0 1px 2px -2px rgba(0,0,0,0.08), 0 3px 6px 0 rgba(0,0,0,0.06) !important;
-}
-/* 卡片内容区 padding，防止表单紧贴边缘 */
-.v-card-text {
-  padding: 20px !important;
-}
-.v-card-title {
-  padding: 16px 20px !important;
-}
-.v-card-actions {
-  padding: 12px 20px !important;
 }
 
 /* 按钮：Antd 默认尺寸，更紧凑 */
@@ -91,26 +82,39 @@ document.title = "S-UI " + document.location.hostname
   border: 1px solid transparent;
 }
 
-/* 输入框：Antd outlined 边框加深（#d9d9d9 太淡看不清） */
+/* 输入框：outlined 加淡灰背景，在白卡片上有层次感 */
+.v-field--variant-outlined {
+  background-color: #fafafa;
+}
+.v-field--variant-outlined:hover:not(.v-field--focused) {
+  background-color: #f5f5f5;
+}
+.v-field--variant-outlined.v-field--focused {
+  background-color: #fff;
+}
+/* 边框加深 */
 .v-field--variant-outlined .v-field__outline__start,
 .v-field--variant-outlined .v-field__outline__end,
 .v-field--variant-outlined .v-field__outline__notch::before,
 .v-field--variant-outlined .v-field__outline__notch::after {
   border-color: #bfbfbf;
 }
-/* 聚焦时变蓝 */
 .v-field--variant-outlined.v-field--focused .v-field__outline__start,
 .v-field--variant-outlined.v-field--focused .v-field__outline__end,
 .v-field--variant-outlined.v-field--focused .v-field__outline__notch::before,
 .v-field--variant-outlined.v-field--focused .v-field__outline__notch::after {
   border-color: #1677ff;
 }
-/* hover 时边框也加深（Antd 交互） */
 .v-field--variant-outlined:hover:not(.v-field--focused) .v-field__outline__start,
 .v-field--variant-outlined:hover:not(.v-field--focused) .v-field__outline__end,
 .v-field--variant-outlined:hover:not(.v-field--focused) .v-field__outline__notch::before,
 .v-field--variant-outlined:hover:not(.v-field--focused) .v-field__outline__notch::after {
   border-color: #8c8c8c;
+}
+
+/* 表单字段间距：防止连续输入框挤在一起 */
+.v-input--density-compact {
+  margin-bottom: 8px;
 }
 
 /* 分隔线 */
@@ -142,6 +146,15 @@ document.title = "S-UI " + document.location.hostname
 }
 .v-theme--dark .v-divider {
   border-color: #303030;
+}
+.v-theme--dark .v-field--variant-outlined {
+  background-color: rgba(255,255,255,0.04);
+}
+.v-theme--dark .v-field--variant-outlined:hover:not(.v-field--focused) {
+  background-color: rgba(255,255,255,0.06);
+}
+.v-theme--dark .v-field--variant-outlined.v-field--focused {
+  background-color: rgba(255,255,255,0.02);
 }
 .v-theme--dark .v-field--variant-outlined .v-field__outline__start,
 .v-theme--dark .v-field--variant-outlined .v-field__outline__end,

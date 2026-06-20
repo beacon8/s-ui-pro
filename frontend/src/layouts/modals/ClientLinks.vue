@@ -15,22 +15,24 @@
           type="text, divider, text, divider, text"
           v-if="loading"
         ></v-skeleton-loader>
-      <v-card-text style="overflow-y: auto; padding: 0" :hidden="loading">
+      <v-card-text style="overflow-y: auto;" :hidden="loading">
         <v-tabs
           v-model="tab"
           density="compact"
           fixed-tabs
           align-tabs="center"
+          class="mx-n5"
         >
           <v-tab value="sub">{{ $t('setting.sub') }}</v-tab>
           <v-tab value="link">{{ $t('client.links') }}</v-tab>
         </v-tabs>
-        <v-window v-model="tab" style="margin-top: 10px;">
-          <v-window-item value="sub" class="px-4 pb-4">
+        <v-window v-model="tab" style="margin-top: 16px;">
+          <v-window-item value="sub" class="px-1 pb-2">
             <v-text-field
               readonly
               variant="outlined"
               density="compact"
+              class="mb-3"
               :label="$t('setting.sub')"
               :model-value="clientSub"
               append-inner-icon="mdi-content-copy"
@@ -40,6 +42,7 @@
               readonly
               variant="outlined"
               density="compact"
+              class="mb-3"
               :label="$t('setting.jsonSub')"
               :model-value="clientSub + '?format=json'"
               append-inner-icon="mdi-content-copy"
@@ -49,6 +52,7 @@
               readonly
               variant="outlined"
               density="compact"
+              class="mb-3"
               :label="$t('setting.clashSub')"
               :model-value="clientSub + '?format=clash'"
               append-inner-icon="mdi-content-copy"
@@ -58,15 +62,16 @@
               readonly
               variant="outlined"
               density="compact"
+              class="mb-3"
               label="SING-BOX"
               :model-value="singbox"
               append-inner-icon="mdi-content-copy"
               @click:append-inner="copyToClipboard(singbox)"
             ></v-text-field>
           </v-window-item>
-          <v-window-item value="link" class="px-4 pb-4">
-            <div v-for="l in displayLinks" :key="l.uri" class="mb-3">
-              <v-chip size="small" class="mb-1">{{ client.name }}</v-chip>
+          <v-window-item value="link" class="px-1 pb-2">
+            <div v-for="l in displayLinks" :key="l.uri" class="mb-4">
+              <v-chip size="small" class="mb-2">{{ client.name }}</v-chip>
               <v-text-field
                 readonly
                 variant="outlined"
