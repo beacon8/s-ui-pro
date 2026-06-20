@@ -4,14 +4,11 @@
   <UsageStats v-model:visible="usageStatsModal.visible" />
   <v-container class="fill-height" :loading="loading">
     <v-responsive :class="reloadItems.length>0 ? 'fill-height text-center' : 'align-center'" >
-      <v-row class="d-flex align-center justify-center">
-        <v-col cols="auto">
-          <v-img src="@/assets/logo.svg" :width="reloadItems.length>0 ? 100 : 200"></v-img>
-        </v-col>
-      </v-row>
-      <v-row class="d-flex align-center justify-center">
-        <v-col cols="auto">
-          <div class="d-flex flex-wrap align-center justify-center" style="gap: 10px;">
+    <div class="dashboard-header">
+      <div class="logo-row">
+        <v-img src="@/assets/logo.svg" :width="reloadItems.length>0 ? 100 : 200"></v-img>
+      </div>
+      <div class="btn-row">
           <v-dialog v-model="menu" :close-on-content-click="false" transition="scale-transition" max-width="800">
             <template v-slot:activator="{ props }">
               <v-btn v-bind="props" hide-details variant="tonal" elevation="3">{{ $t('main.tiles') }} <v-icon icon="mdi-star-plus" /></v-btn>
@@ -57,12 +54,10 @@
           <v-btn variant="tonal" hide-details elevation="3"
             @click="usageStatsModal.visible = true">{{ $t('main.stats.title') }} <v-icon icon="mdi-chart-box-outline" />
           </v-btn>
-          </div>
-        </v-col>
-      </v-row>
-      <v-row style="gap: 16px;">
-        <v-col cols="12" sm="6" md="4" lg="3" v-for="i in reloadItems" :key="i" style="min-width: 280px;">
-          <v-card class="rounded-lg" variant="outlined" style="min-height: 210px;" elevation="5">
+      </div>
+    </div>
+    <div class="dashboard-grid">
+        <v-card class="rounded-lg" variant="outlined" style="min-height: 210px;" elevation="5" v-for="i in reloadItems" :key="i">
             <v-card-title>
               {{ menuItems.flatMap(cat => cat.value).find(m => m.value == i)?.title }}
               <template v-if="i == 'i-sys'">
@@ -80,11 +75,11 @@
                 </v-icon>
               </template>
             </v-card-title>
-            <v-card-text style="padding: 12px 16px;" align="center" justify="center">
-              <div v-if="i.charAt(0) == 'g'" style="height: 150px; display: flex; align-items: center; justify-content: center;">
+            <v-card-text class="dash-card-body" align="center" justify="center">
+              <div v-if="i.charAt(0) == 'g'" class="gauge-wrap">
                 <Gauge :tilesData="tilesData" :type="i" />
               </div>
-              <div v-if="i.charAt(0) == 'h'" style="height: 150px; position: relative;">
+              <div v-if="i.charAt(0) == 'h'" class="chart-wrap">
                 <History :tilesData="tilesData" :type="i" />
               </div>
               <template v-if="i == 'i-sys'">
@@ -185,10 +180,9 @@
               </template>
             </v-card-text>
           </v-card>
-        </v-col>
-      </v-row>
-    </v-responsive>
-  </v-container>
+    </div>
+     </v-responsive>
+   </v-container>
 </template>
 
 <script lang="ts" setup>
@@ -298,13 +292,70 @@ const restartSingbox = async () => {
 </script>
 
 <style scoped>
+/* ===== 区域1: Header — logo 单独行 + 按钮行 flex 居中 ===== */
+.dashboard-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 0;
+}
+.logo-row {
+  display: flex;
+  justify-content: center;
+}
+.btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+}
+
+/* ===== 区域2: Grid — 统一三列，最后一行左对齐 ===== */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  align-items: stretch;
+}
+@media (max-width: 960px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 600px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ===== 区域3: Card body padding ===== */
+.dash-card-body {
+  padding: 16px 24px !important;
+}
+
+/* ===== 区域5: 圆环/折线图容器 ===== */
+.gauge-wrap {
+  height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 0;
+}
+.chart-wrap {
+  height: 150px;
+  position: relative;
+  padding: 8px 12px;
+}
+
+/* ===== 区域4: 系统信息/运行信息每行 flex space-between ===== */
 .info-grid {
   margin: 0;
-  row-gap: 6px;
 }
 .info-grid .v-col {
-  padding-top: 2px;
-  padding-bottom: 2px;
+  padding-top: 4px;
+  padding-bottom: 4px;
 }
 .info-label {
   color: rgba(0,0,0,0.55);
@@ -317,7 +368,7 @@ const restartSingbox = async () => {
   align-items: center;
   justify-content: flex-end;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 6px;
   font-size: 13px;
 }
 </style>
