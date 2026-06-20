@@ -24,6 +24,7 @@ export default {
   email: "Email",
   commaSeparated: "(được phân tách bằng dấu phẩy)",
   count: "Đếm",
+  search: "Tìm kiếm",
   template: "Mẫu",
   editor: "Bản sử dụng",
   error: {

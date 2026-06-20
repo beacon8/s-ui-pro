@@ -24,6 +24,7 @@ export default {
   email: "電子郵件",
   commaSeparated: "（逗號分隔）",
   count: "計數",
+  search: "搜尋",
   template: "模板",
   editor: "編輯器",
   error: {

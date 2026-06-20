@@ -24,6 +24,7 @@ export default {
   email: "Email",
   commaSeparated: "(comma separated)",
   count: "Count",
+  search: "Search",
   template: "Template",
   editor: "Editor",
   error: {

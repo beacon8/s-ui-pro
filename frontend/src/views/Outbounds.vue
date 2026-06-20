@@ -39,6 +39,17 @@
         {{ $t('actions.testAll') || 'Test all' }}
       </v-btn>
     </v-col>
+    <v-col cols="12" sm="4" md="3">
+      <v-text-field
+        v-model="searchTag"
+        :label="$t('search')"
+        prepend-inner-icon="mdi-magnify"
+        clearable
+        hide-details
+        density="compact"
+        variant="outlined"
+      ></v-text-field>
+    </v-col>
   </v-row>
   <v-row>
     <v-col cols="12" sm="4" md="3" lg="2" v-for="{ item, index } in <any[]>pagedOutbounds" :key="item.tag">
@@ -197,17 +208,25 @@ const outbounds = computed((): Outbound[] => {
   return <Outbound[]> Data().outbounds
 })
 
+const searchTag = ref('')
+const filteredOutbounds = computed((): Outbound[] => {
+  const q = searchTag.value?.trim().toLowerCase()
+  if (!q) return outbounds.value
+  return outbounds.value.filter((o:any) => (o.tag ?? '').toLowerCase().includes(q))
+})
+
 const pageSize = 60
 const page = ref(1)
-const pageCount = computed(() => Math.max(1, Math.ceil(outbounds.value.length / pageSize)))
+const pageCount = computed(() => Math.max(1, Math.ceil(filteredOutbounds.value.length / pageSize)))
 const pagedOutbounds = computed(() => {
   const start = (page.value - 1) * pageSize
-  return outbounds.value
+  return filteredOutbounds.value
     .slice(start, start + pageSize)
-    .map((item, i) => ({ item, index: start + i }))
+    .map((item) => ({ item, index: outbounds.value.indexOf(item) }))
 })
 
 watch(pageCount, (n) => { if (page.value > n) page.value = n })
+watch(searchTag, () => { page.value = 1 })
 
 const outboundTags = computed((): string[] => {
   return [...Data().outbounds?.map((o:Outbound) => o.tag), ...Data().endpoints?.map((e:any) => e.tag)]

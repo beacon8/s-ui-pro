@@ -128,6 +128,18 @@
   </v-row>
   <v-row>
     <v-col class="v-card-subtitle" cols="12">{{ $t('pages.rules') }}</v-col>
+    <v-col cols="12" sm="4" md="3">
+      <v-text-field
+        v-model="searchRuleOut"
+        :label="$t('search') + ' (' + $t('objects.outbound') + ')'"
+        prepend-inner-icon="mdi-magnify"
+        clearable
+        hide-details
+        density="compact"
+        variant="outlined"
+      ></v-text-field>
+    </v-col>
+    <v-col cols="12"></v-col>
     <v-col cols="12" sm="4" md="3" lg="2" v-for="{ item, index } in <any[]>pagedRules"
         :key="item.id" :draggable="true"
         @dragstart="onDragStart(index)" @dragover.prevent @drop="onDrop(index)">
@@ -237,12 +249,21 @@ const rulesetTags = computed((): string[] => rulesets.value.map((rs:any) => rs.t
 const pageSize = 60
 
 const rulePage = ref(1)
-const rulePageCount = computed(() => Math.max(1, Math.ceil(rules.value.length / pageSize)))
+const searchRuleOut = ref('')
+const filteredRules = computed(() => {
+  const q = searchRuleOut.value?.trim().toLowerCase()
+  if (!q) return rules.value.map((item:any, index:number) => ({ item, index }))
+  return rules.value
+    .map((item:any, index:number) => ({ item, index }))
+    .filter(({ item }) => (item.outbound ?? '').toLowerCase().includes(q))
+})
+const rulePageCount = computed(() => Math.max(1, Math.ceil(filteredRules.value.length / pageSize)))
 const pagedRules = computed(() => {
   const start = (rulePage.value - 1) * pageSize
-  return rules.value.slice(start, start + pageSize).map((item, i) => ({ item, index: start + i }))
+  return filteredRules.value.slice(start, start + pageSize)
 })
 watch(rulePageCount, (n) => { if (rulePage.value > n) rulePage.value = n })
+watch(searchRuleOut, () => { rulePage.value = 1 })
 
 const rulesetPage = ref(1)
 const rulesetPageCount = computed(() => Math.max(1, Math.ceil(rulesets.value.length / pageSize)))

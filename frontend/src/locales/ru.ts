@@ -24,6 +24,7 @@ export default {
   email: "Электронная почта",
   commaSeparated: "(разделено запятыми)",
   count: "Количество",
+  search: "Поиск",
   template: "Шаблон",
   editor: "Редактор",
   error: {

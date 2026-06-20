@@ -24,6 +24,7 @@ export default {
   email: "ایمیل",
   commaSeparated: "(جداشده با کاما)",
   count: "تعداد",
+  search: "جستجو",
   template: "الگو",
   editor: "ویرایشگر",
   error: {
