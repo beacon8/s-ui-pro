@@ -41,7 +41,7 @@
     </v-col>
   </v-row>
   <v-row>
-    <v-col cols="12" sm="4" md="3" lg="2" v-for="(item, index) in <any[]>outbounds" :key="item.tag">
+    <v-col cols="12" sm="4" md="3" lg="2" v-for="{ item, index } in <any[]>pagedOutbounds" :key="item.tag">
       <v-card rounded="xl" elevation="5" min-width="200" :title="item.tag">
         <v-card-subtitle style="margin-top: -15px;">
           <v-row>
@@ -144,6 +144,11 @@
       </v-card>
     </v-col>
   </v-row>
+  <v-row v-if="pageCount > 1" justify="center">
+    <v-col cols="12">
+      <v-pagination v-model="page" :length="pageCount" :total-visible="7" density="comfortable"></v-pagination>
+    </v-col>
+  </v-row>
 </template>
 
 <script lang="ts" setup>
@@ -153,7 +158,7 @@ import OutboundVue from '@/layouts/modals/Outbound.vue'
 import OutboundBulk from '@/layouts/modals/OutboundBulk.vue'
 import Stats from '@/layouts/modals/Stats.vue'
 import { Outbound } from '@/types/outbounds'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 interface CheckResult {
   loading?: boolean
@@ -191,6 +196,18 @@ const checkAllOutbounds = async () => {
 const outbounds = computed((): Outbound[] => {
   return <Outbound[]> Data().outbounds
 })
+
+const pageSize = 60
+const page = ref(1)
+const pageCount = computed(() => Math.max(1, Math.ceil(outbounds.value.length / pageSize)))
+const pagedOutbounds = computed(() => {
+  const start = (page.value - 1) * pageSize
+  return outbounds.value
+    .slice(start, start + pageSize)
+    .map((item, i) => ({ item, index: start + i }))
+})
+
+watch(pageCount, (n) => { if (page.value > n) page.value = n })
 
 const outboundTags = computed((): string[] => {
   return [...Data().outbounds?.map((o:Outbound) => o.tag), ...Data().endpoints?.map((e:any) => e.tag)]

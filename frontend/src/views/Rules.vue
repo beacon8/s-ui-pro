@@ -91,7 +91,7 @@
   </v-row>
   <v-row>
     <v-col class="v-card-subtitle" cols="12">{{ $t('rule.ruleset') }}</v-col>
-    <v-col cols="12" sm="4" md="3" lg="2" v-for="(item, index) in <any[]>rulesets" :key="item.tag">
+    <v-col cols="12" sm="4" md="3" lg="2" v-for="{ item, index } in <any[]>pagedRulesets" :key="item.tag">
       <v-card rounded="xl" elevation="5" min-width="200" :title="item.tag">
         <v-card-subtitle style="margin-top: -15px;">
           <v-row><v-col>{{ $t('ruleset.' + item.type) }}</v-col></v-row>
@@ -122,10 +122,13 @@
         </v-card-actions>
       </v-card>
     </v-col>
+    <v-col cols="12" v-if="rulesetPageCount > 1">
+      <v-pagination v-model="rulesetPage" :length="rulesetPageCount" :total-visible="7" density="comfortable"></v-pagination>
+    </v-col>
   </v-row>
   <v-row>
     <v-col class="v-card-subtitle" cols="12">{{ $t('pages.rules') }}</v-col>
-    <v-col cols="12" sm="4" md="3" lg="2" v-for="(item, index) in <any[]>rules"
+    <v-col cols="12" sm="4" md="3" lg="2" v-for="{ item, index } in <any[]>pagedRules"
         :key="item.id" :draggable="true"
         @dragstart="onDragStart(index)" @dragover.prevent @drop="onDrop(index)">
       <v-card rounded="xl" elevation="5" min-width="200" :title="index+1">
@@ -159,12 +162,15 @@
         </v-card-actions>
       </v-card>
     </v-col>
+    <v-col cols="12" v-if="rulePageCount > 1">
+      <v-pagination v-model="rulePage" :length="rulePageCount" :total-visible="7" density="comfortable"></v-pagination>
+    </v-col>
   </v-row>
 </template>
 
 <script lang="ts" setup>
 import Data from '@/store/modules/data'
-import { computed, ref, onBeforeMount } from 'vue'
+import { computed, ref, onBeforeMount, watch } from 'vue'
 import RuleVue from '@/layouts/modals/Rule.vue'
 import RulesetVue from '@/layouts/modals/Ruleset.vue'
 import RulesetImport from '@/layouts/modals/RulesetImport.vue'
@@ -227,6 +233,25 @@ const rulesets = computed((): any[] => {
 })
 
 const rulesetTags = computed((): string[] => rulesets.value.map((rs:any) => rs.tag))
+
+const pageSize = 60
+
+const rulePage = ref(1)
+const rulePageCount = computed(() => Math.max(1, Math.ceil(rules.value.length / pageSize)))
+const pagedRules = computed(() => {
+  const start = (rulePage.value - 1) * pageSize
+  return rules.value.slice(start, start + pageSize).map((item, i) => ({ item, index: start + i }))
+})
+watch(rulePageCount, (n) => { if (rulePage.value > n) rulePage.value = n })
+
+const rulesetPage = ref(1)
+const rulesetPageCount = computed(() => Math.max(1, Math.ceil(rulesets.value.length / pageSize)))
+const pagedRulesets = computed(() => {
+  const start = (rulesetPage.value - 1) * pageSize
+  return rulesets.value.slice(start, start + pageSize).map((item, i) => ({ item, index: start + i }))
+})
+watch(rulesetPageCount, (n) => { if (rulesetPage.value > n) rulesetPage.value = n })
+
 
 const outboundTags = computed((): string[] => [
   ...Data().outbounds?.map((o:any) => o.tag),
