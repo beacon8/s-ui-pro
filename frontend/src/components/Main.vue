@@ -11,6 +11,7 @@
       </v-row>
       <v-row class="d-flex align-center justify-center">
         <v-col cols="auto">
+          <div class="d-flex flex-wrap align-center justify-center" style="gap: 10px;">
           <v-dialog v-model="menu" :close-on-content-click="false" transition="scale-transition" max-width="800">
             <template v-slot:activator="{ props }">
               <v-btn v-bind="props" hide-details variant="tonal" elevation="3">{{ $t('main.tiles') }} <v-icon icon="mdi-star-plus" /></v-btn>
@@ -47,23 +48,21 @@
               </v-row>
             </v-card>
           </v-dialog>
-          <v-btn variant="tonal" hide-details 
-            style="margin-inline-start: 10px;" elevation="3"
+          <v-btn variant="tonal" hide-details elevation="3"
             @click="backupModal.visible = true">{{ $t('main.backup.title') }}<v-icon icon="mdi-backup-restore" />
           </v-btn>
-          <v-btn variant="tonal" hide-details
-            style="margin-inline-start: 10px;" elevation="3"
+          <v-btn variant="tonal" hide-details elevation="3"
             @click="logModal.visible = true">{{ $t('basic.log.title') }} <v-icon icon="mdi-list-box-outline" />
           </v-btn>
-          <v-btn variant="tonal" hide-details
-            style="margin-inline-start: 10px;" elevation="3"
+          <v-btn variant="tonal" hide-details elevation="3"
             @click="usageStatsModal.visible = true">{{ $t('main.stats.title') }} <v-icon icon="mdi-chart-box-outline" />
           </v-btn>
+          </div>
         </v-col>
       </v-row>
-      <v-row>
-        <v-col cols="12" sm="6" md="3" v-for="i in reloadItems" :key="i">
-          <v-card class="rounded-lg" variant="outlined" height="210px" elevation="5">
+      <v-row style="gap: 16px;">
+        <v-col cols="12" sm="6" md="4" lg="3" v-for="i in reloadItems" :key="i" style="min-width: 280px;">
+          <v-card class="rounded-lg" variant="outlined" style="min-height: 210px;" elevation="5">
             <v-card-title>
               {{ menuItems.flatMap(cat => cat.value).find(m => m.value == i)?.title }}
               <template v-if="i == 'i-sys'">
@@ -81,104 +80,86 @@
                 </v-icon>
               </template>
             </v-card-title>
-            <v-card-text style="padding: 0 16px;" align="center" justify="center">
-              <Gauge :tilesData="tilesData" :type="i" v-if="i.charAt(0) == 'g'" />
-              <History :tilesData="tilesData" :type="i" v-if="i.charAt(0) == 'h'" />
+            <v-card-text style="padding: 12px 16px;" align="center" justify="center">
+              <div v-if="i.charAt(0) == 'g'" style="height: 150px; display: flex; align-items: center; justify-content: center;">
+                <Gauge :tilesData="tilesData" :type="i" />
+              </div>
+              <div v-if="i.charAt(0) == 'h'" style="height: 150px; position: relative;">
+                <History :tilesData="tilesData" :type="i" />
+              </div>
               <template v-if="i == 'i-sys'">
-                <v-row>
-                  <v-col cols="3">{{ $t('main.info.host') }}</v-col>
-                  <v-col cols="9" style="text-wrap: nowrap; overflow: hidden">{{ tilesData.sys?.hostName }}</v-col>
-                  <v-col cols="3">{{ $t('main.info.cpu') }}</v-col>
-                  <v-col cols="9">
-                    <v-chip density="compact" variant="flat">
-                      <v-tooltip activator="parent" location="top" style="direction: ltr;">
-                        {{ tilesData.sys?.cpuType }}
-                      </v-tooltip>
-                     {{ tilesData.sys?.cpuCount }} {{ $t('main.info.core') }}
+                <div class="info-row" v-for="row in [
+                  { label: $t('main.info.host'), value: tilesData.sys?.hostName },
+                  { label: $t('main.info.cpu'), chip: true, chipText: (tilesData.sys?.cpuCount ?? '') + ' ' + $t('main.info.core'), tooltip: tilesData.sys?.cpuType },
+                  { label: 'IP', ips: [{ text: 'IPv4', val: tilesData.sys?.ipv4 }, { text: 'IPv6', val: tilesData.sys?.ipv6 }] },
+                  { label: 'S-UI', chip: true, chipText: 'v' + (tilesData.sys?.appVersion ?? ''), chipColor: 'blue' },
+                  { label: $t('main.info.uptime'), value: HumanReadable.formatSecond((Date.now()/1000) - tilesData.sys?.bootTime), tooltip: $t('main.info.startupTime') + ': ' + new Date((tilesData.sys?.bootTime || 0) * 1000).toLocaleString(locale) },
+                ]">
+                  <span class="info-label">{{ row.label }}</span>
+                  <span class="info-value">
+                    <template v-if="row.value">{{ row.value }}</template>
+                    <v-chip density="compact" variant="flat" v-else-if="row.chip" :color="row.chipColor">
+                      <v-tooltip v-if="row.tooltip" activator="parent" location="top" style="direction: ltr;">{{ row.tooltip }}</v-tooltip>
+                      {{ row.chipText }}
                     </v-chip>
-                  </v-col>
-                  <v-col cols="3">IP</v-col>
-                  <v-col cols="9">
-                    <v-chip density="compact" color="primary" variant="flat" v-if="tilesData.sys?.ipv4?.length>0">
-                      <v-tooltip activator="parent" location="top" style="direction: ltr;">
-                        <span v-html="tilesData.sys?.ipv4?.join('<br />')"></span>
-                      </v-tooltip>
-                      IPv4
-                    </v-chip>
-                    <v-chip density="compact" color="primary" variant="flat" v-if="tilesData.sys?.ipv6?.length>0">
-                      <v-tooltip activator="parent" location="top" style="direction: ltr;">
-                        <span v-html="tilesData.sys?.ipv6?.join('<br />')"></span>
-                      </v-tooltip>
-                      IPv6
-                    </v-chip>
-                  </v-col>
-                  <v-col cols="3">S-UI</v-col>
-                  <v-col cols="9">
-                    <v-chip density="compact" color="blue">
-                      v{{ tilesData.sys?.appVersion }}
-                    </v-chip>
-                  </v-col>
-                  <v-col cols="3">{{ $t('main.info.uptime') }}</v-col>
-                  <v-col cols="9" v-tooltip:top="$t('main.info.startupTime')
-                    + ': ' + new Date((tilesData.sys?.bootTime || 0) * 1000).toLocaleString(locale)">
-                    {{ HumanReadable.formatSecond((Date.now()/1000) - tilesData.sys?.bootTime) }}
-                  </v-col>
-                </v-row>
+                    <template v-else-if="row.ips">
+                      <template v-for="ip in row.ips" :key="ip.text">
+                        <v-chip density="compact" color="primary" variant="flat" v-if="ip.val?.length>0" style="margin-inline-end: 6px;">
+                          <v-tooltip activator="parent" location="top" style="direction: ltr;">
+                            <span v-html="ip.val?.join('<br />')"></span>
+                          </v-tooltip>
+                          {{ ip.text }}
+                        </v-chip>
+                      </template>
+                    </template>
+                  </span>
+                </div>
               </template>
               <template v-if="i == 'i-sbd'">
-                <v-row>
-                  <v-col cols="4">{{ $t('main.info.running') }}</v-col>
-                  <v-col cols="8">
-                    <v-chip density="compact" color="success" variant="flat" v-if="tilesData.sbd?.running">{{ $t('yes') }}</v-chip> 
-                    <v-chip density="compact" color="error" variant="flat" v-else>{{ $t('no') }}</v-chip>
-                    <v-chip density="compact" color="transparent" v-if="tilesData.sbd?.running && !loading" style="cursor: pointer;" @click="restartSingbox()">
-                      <v-tooltip activator="parent" location="top">
-                        {{ $t('actions.restartSb') }}
-                      </v-tooltip>
-                      <v-icon icon="mdi-restart" color="warning" />
-                    </v-chip>
-                  </v-col>
-                  <v-col cols="4">{{ $t('main.info.memory') }}</v-col>
-                  <v-col cols="8">
-                    <v-chip density="compact" color="primary" variant="flat" v-if="tilesData.sbd?.stats?.Alloc">
-                      {{ HumanReadable.sizeFormat(tilesData.sbd?.stats?.Alloc) }}
-                    </v-chip> 
-                  </v-col>
-                  <v-col cols="4">{{ $t('main.info.threads') }}</v-col>
-                  <v-col cols="8">
-                    <v-chip density="compact" color="primary" variant="flat" v-if="tilesData.sbd?.stats?.NumGoroutine">
-                      {{ tilesData.sbd?.stats?.NumGoroutine }}
-                    </v-chip>
-                  </v-col>
-                  <v-col cols="4">{{ $t('main.info.uptime') }}</v-col>
-                  <v-col cols="8">{{ HumanReadable.formatSecond(tilesData.sbd?.stats?.Uptime) }}</v-col>
-                  <v-col cols="4">{{ $t('online') }}</v-col>
-                  <v-col cols="8">
-                    <template v-if="tilesData.sbd?.running">
-                      <v-chip density="compact" color="primary" variant="flat" v-if="Data().onlines.user">
-                        <v-tooltip activator="parent" location="top" overflow="auto">
-                          <span v-text="$t('pages.clients')" style="font-weight: bold;"></span><br/>
-                          <span v-for="user in Data().onlines.user">{{ user }}<br /></span>
-                        </v-tooltip>
-                        {{ Data().onlines.user?.length }}
-                      </v-chip>
-                      <v-chip density="compact" color="success" variant="flat" v-if="Data().onlines.inbound">
-                        <v-tooltip activator="parent" location="top" :text="$t('pages.inbounds')">
-                          <span v-text="$t('pages.inbounds')" style="font-weight: bold;"></span><br/>
-                          <span v-for="i in Data().onlines.inbound">{{ i }}<br /></span>
-                        </v-tooltip>
-                        {{ Data().onlines.inbound?.length }}
-                      </v-chip>
-                      <v-chip density="compact" color="info" variant="flat" v-if="Data().onlines.outbound">
-                        <v-tooltip activator="parent" location="top" :text="$t('pages.outbounds')">
-                          <span v-text="$t('pages.outbounds')" style="font-weight: bold;"></span><br/>
-                          <span v-for="o in Data().onlines.outbound">{{ o }}<br /></span>
-                        </v-tooltip>
-                        {{ Data().onlines.outbound?.length }}
+                <div class="info-row" v-for="row in [
+                  { label: $t('main.info.running'), sbdRunning: tilesData.sbd?.running },
+                  { label: $t('main.info.memory'), chip: true, chipText: HumanReadable.sizeFormat(tilesData.sbd?.stats?.Alloc), chipColor: 'primary', show: tilesData.sbd?.stats?.Alloc },
+                  { label: $t('main.info.threads'), chip: true, chipText: tilesData.sbd?.stats?.NumGoroutine, chipColor: 'primary', show: tilesData.sbd?.stats?.NumGoroutine },
+                  { label: $t('main.info.uptime'), value: HumanReadable.formatSecond(tilesData.sbd?.stats?.Uptime) },
+                  { label: $t('online'), onlines: Data().onlines, sbdRunning: tilesData.sbd?.running },
+                ]">
+                  <span class="info-label">{{ row.label }}</span>
+                  <span class="info-value">
+                    <template v-if="row.value">{{ row.value }}</template>
+                    <template v-else-if="row.sbdRunning !== undefined && !row.onlines">
+                      <v-chip density="compact" color="success" variant="flat" v-if="row.sbdRunning">{{ $t('yes') }}</v-chip> 
+                      <v-chip density="compact" color="error" variant="flat" v-else>{{ $t('no') }}</v-chip>
+                      <v-chip density="compact" color="transparent" v-if="row.sbdRunning && !loading" style="cursor: pointer; margin-inline-start: 6px;" @click="restartSingbox()">
+                        <v-tooltip activator="parent" location="top">{{ $t('actions.restartSb') }}</v-tooltip>
+                        <v-icon icon="mdi-restart" color="warning" />
                       </v-chip>
                     </template>
-                  </v-col>
-                </v-row>
+                    <v-chip density="compact" variant="flat" v-else-if="row.chip && row.show" :color="row.chipColor">{{ row.chipText }}</v-chip>
+                    <template v-else-if="row.onlines && row.sbdRunning">
+                      <v-chip density="compact" color="primary" variant="flat" v-if="row.onlines.user" style="margin-inline-end: 6px;">
+                        <v-tooltip activator="parent" location="top" overflow="auto">
+                          <span v-text="$t('pages.clients')" style="font-weight: bold;"></span><br/>
+                          <span v-for="user in row.onlines.user">{{ user }}<br /></span>
+                        </v-tooltip>
+                        {{ row.onlines.user?.length }}
+                      </v-chip>
+                      <v-chip density="compact" color="success" variant="flat" v-if="row.onlines.inbound" style="margin-inline-end: 6px;">
+                        <v-tooltip activator="parent" location="top" :text="$t('pages.inbounds')">
+                          <span v-text="$t('pages.inbounds')" style="font-weight: bold;"></span><br/>
+                          <span v-for="i in row.onlines.inbound">{{ i }}<br /></span>
+                        </v-tooltip>
+                        {{ row.onlines.inbound?.length }}
+                      </v-chip>
+                      <v-chip density="compact" color="info" variant="flat" v-if="row.onlines.outbound">
+                        <v-tooltip activator="parent" location="top" :text="$t('pages.outbounds')">
+                          <span v-text="$t('pages.outbounds')" style="font-weight: bold;"></span><br/>
+                          <span v-for="o in row.onlines.outbound">{{ o }}<br /></span>
+                        </v-tooltip>
+                        {{ row.onlines.outbound?.length }}
+                      </v-chip>
+                    </template>
+                  </span>
+                </div>
               </template>
             </v-card-text>
           </v-card>
@@ -293,3 +274,36 @@ const restartSingbox = async () => {
   loading.value = false
 }
 </script>
+
+<style scoped>
+.info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 13px;
+  text-align: left;
+}
+.info-row:last-child {
+  border-bottom: none;
+}
+.info-label {
+  flex-shrink: 0;
+  color: rgba(0,0,0,0.65);
+  white-space: nowrap;
+}
+.info-value {
+  flex: 1;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+</style>

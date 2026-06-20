@@ -66,7 +66,8 @@ const gaugeColor = computed(() => {
 <style scoped>
 .gauge__outer {
   width: 100%;
-  max-width: 250px;
+  max-width: 200px;
+  min-height: 100px;
 }
 
 .gauge__inner {
@@ -106,14 +107,15 @@ const gaugeColor = computed(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding-bottom: 25%;
+  padding-bottom: 20%;
   box-sizing: border-box;
   font-family: 'Lexend', sans-serif;
   font-weight: bold;
-  font-size: 32px;
+  font-size: 20px;
+  line-height: 1.1;
 }
 
 sup {
-  font-size: 16px;
+  font-size: 12px;
 }
 </style>
