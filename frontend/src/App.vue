@@ -36,12 +36,12 @@ document.title = "S-UI " + document.location.hostname
 
 /* 卡片：Antd 风格边框 + 柔和阴影 */
 .v-card {
-  border-color: #f0f0f0 !important;
-  box-shadow: 0 1px 2px -2px rgba(0,0,0,0.08), 0 3px 6px 0 rgba(0,0,0,0.06) !important;
+  border-color: #d9d9d9 !important;
+  box-shadow: 0 1px 2px -2px rgba(0,0,0,0.16), 0 3px 6px 0 rgba(0,0,0,0.12), 0 5px 12px 4px rgba(0,0,0,0.08) !important;
   overflow: hidden;
 }
 .v-card--variant-elevated {
-  box-shadow: 0 1px 2px -2px rgba(0,0,0,0.08), 0 3px 6px 0 rgba(0,0,0,0.06) !important;
+  box-shadow: 0 1px 2px -2px rgba(0,0,0,0.16), 0 3px 6px 0 rgba(0,0,0,0.12), 0 5px 12px 4px rgba(0,0,0,0.08) !important;
 }
 
 /* 嵌套卡片：去边框去阴影，作为纯分组容器（Antd 风格），避免分组标题与边框线重叠 */
@@ -154,7 +154,8 @@ document.title = "S-UI " + document.location.hostname
 
 /* 暗色主题适配 */
 .v-theme--dark .v-card {
-  border-color: #303030 !important;
+  border-color: #424242 !important;
+  box-shadow: 0 1px 2px -2px rgba(0,0,0,0.5), 0 3px 6px 0 rgba(0,0,0,0.4), 0 5px 12px 4px rgba(0,0,0,0.3) !important;
 }
 .v-theme--dark .v-data-table__th {
   background: #1f1f1f !important;
