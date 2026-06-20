@@ -44,6 +44,25 @@ document.title = "S-UI " + document.location.hostname
   box-shadow: 0 1px 2px -2px rgba(0,0,0,0.08), 0 3px 6px 0 rgba(0,0,0,0.06) !important;
 }
 
+/* 嵌套卡片：去边框去阴影，作为纯分组容器（Antd 风格），避免分组标题与边框线重叠 */
+.v-card .v-card {
+  border: none !important;
+  box-shadow: none !important;
+  overflow: visible;
+}
+/* 分组副标题：补顶部 padding，防止紧贴边框/分隔线 */
+.v-card-subtitle {
+  padding-top: 14px !important;
+  padding-bottom: 6px !important;
+  font-weight: 500;
+  opacity: 0.85;
+}
+
+/* 弹窗滚动区：补顶部 padding，防止浮动 label 上半部分被裁 */
+.v-card-text[style*="overflow-y"] {
+  padding-top: 14px !important;
+}
+
 /* 按钮：Antd 默认尺寸，更紧凑 */
 .v-btn {
   text-transform: none;
