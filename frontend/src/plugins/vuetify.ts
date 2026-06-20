@@ -1,14 +1,13 @@
 /**
  * plugins/vuetify.ts
  *
- * Framework documentation: https://vuetifyjs.com`
+ * Ant Design 风格主题适配
  */
 
 // Styles
 import '@mdi/font/css/materialdesignicons.css'
 import 'vuetify/styles/main.css'
 
-import colors from 'vuetify/util/colors'
 import { fa, en, vi, zhHans, zhHant, ru } from 'vuetify/locale'
 
 // Composables
@@ -19,16 +18,34 @@ export default createVuetify({
   defaults: {
     VRow: { density: 'compact' },
     VTextField: {
-      variant: 'solo-filled',
+      variant: 'outlined',
+      density: 'comfortable',
+      hideDetails: 'auto',
     },
     VSelect: {
-      variant: 'solo-filled',
+      variant: 'outlined',
+      density: 'comfortable',
+      hideDetails: 'auto',
     },
     VCombobox: {
-      variant: 'solo-filled',
+      variant: 'outlined',
+      density: 'comfortable',
+      hideDetails: 'auto',
     },
     VTextarea: {
-      variant: 'solo-filled',
+      variant: 'outlined',
+      density: 'comfortable',
+      hideDetails: 'auto',
+    },
+    VBtn: {
+      density: 'comfortable',
+    },
+    VCard: {
+      rounded: 'lg',
+      border: 'thin',
+    },
+    VChip: {
+      density: 'comfortable',
     },
   },
   theme: {
@@ -36,14 +53,27 @@ export default createVuetify({
     themes: {
       light: {
         colors: {
-          error: '#FF5252',
-          background: colors.grey.lighten4,
+          // Antd 5 默认蓝
+          primary: '#1677ff',
+          secondary: '#1677ff',
+          error: '#ff4d4f',
+          warning: '#faad14',
+          success: '#52c41a',
+          info: '#1677ff',
+          background: '#f5f5f5',
+          surface: '#ffffff',
         },
       },
       dark: {
         colors: {
-          primary: colors.blue.darken4,
-          error: colors.red.accent3,
+          primary: '#1668dc',
+          secondary: '#1668dc',
+          error: '#ff7875',
+          warning: '#d48806',
+          success: '#49aa19',
+          info: '#1668dc',
+          background: '#141414',
+          surface: '#1f1f1f',
         },
       },
     },

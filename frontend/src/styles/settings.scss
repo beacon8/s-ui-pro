@@ -2,12 +2,17 @@
  * src/styles/settings.scss
  *
  * Configures SASS variables and Vuetify overwrites
+ * Ant Design 风格适配
  */
 
 // https://vuetifyjs.com/features/sass-variables/`
-// @use 'vuetify/settings' with (
-//   $color-pack: false
-// );
+@use 'vuetify/settings' with (
+  // Antd 默认圆角 6px，卡片 8px
+  $border-radius-root: 6px,
+  // Antd 默认字号 14px
+  $body-font-family: (-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif),
+);
+
 @font-face {
     font-display: swap;
     font-family: 'Vazirmatn';
@@ -16,7 +21,6 @@
     src: url('@/assets/Vazirmatn-UI-NL-Regular.woff2') format('woff2');
     unicode-range: U+0600-06FF, U+200C-200E, U+2010-2011, U+204F, U+2E41, U+FB50-FDFF, U+FE80-FEFC, U+0030-0039;
 }
-$body-font-family: "Vazirmatn";
 
 $typoOptions: text-h1, text-sm-h1, text-md-h1, text-lg-h1, text-h2, text-sm-h2,
   text-md-h2, text-lg-h2, text-h3, text-sm-h3, text-md-h3, text-lg-h3, text-h4,
@@ -26,10 +30,10 @@ $typoOptions: text-h1, text-sm-h1, text-md-h1, text-lg-h1, text-h2, text-sm-h2,
   text-lg-body-1, text-body-2, text-sm-body-2, text-md-body-2, text-lg-body-2,
   text-caption;
 body {
-  font-family: -apple-system, BlinkMacSystemFont, $body-font-family, sans-serif !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Vazirmatn', sans-serif !important;
   @each $typoOption in $typoOptions {
     .#{$typoOption} {
-      font-family: -apple-system, BlinkMacSystemFont, $body-font-family, sans-serif !important;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Vazirmatn', sans-serif !important;
     }
   }
 }
