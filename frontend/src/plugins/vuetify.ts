@@ -19,33 +19,35 @@ export default createVuetify({
     VRow: { density: 'compact' },
     VTextField: {
       variant: 'outlined',
-      density: 'comfortable',
+      density: 'compact',
       hideDetails: 'auto',
     },
     VSelect: {
       variant: 'outlined',
-      density: 'comfortable',
+      density: 'compact',
       hideDetails: 'auto',
     },
     VCombobox: {
       variant: 'outlined',
-      density: 'comfortable',
+      density: 'compact',
       hideDetails: 'auto',
     },
     VTextarea: {
       variant: 'outlined',
-      density: 'comfortable',
+      density: 'compact',
       hideDetails: 'auto',
     },
     VBtn: {
-      density: 'comfortable',
+      density: 'compact',
     },
     VCard: {
       rounded: 'lg',
-      border: 'thin',
     },
     VChip: {
-      density: 'comfortable',
+      density: 'compact',
+    },
+    VCardText: {
+      class: 'pa-4',
     },
   },
   theme: {
