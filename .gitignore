@@ -27,6 +27,13 @@ sui-*.exe
 sui-*.zip
 windows/sui-*.exe
 
+# Build artifacts / binaries
+libcronet.so
+sui-linux-amd64
+
+# Playwright cache
+.playwright-mcp/
+
 # Editor directories and files
 .idea
 .vscode
