@@ -66,7 +66,7 @@
           </v-window-item>
           <v-window-item value="link" class="px-4 pb-4">
             <div v-for="l in clientLinks" :key="l.uri" class="mb-3">
-              <v-chip size="small" class="mb-1">{{ l.remark ?? $t('client.' + l.type) }}</v-chip>
+              <v-chip size="small" class="mb-1">{{ client.name }}</v-chip>
               <v-text-field
                 readonly
                 variant="outlined"
