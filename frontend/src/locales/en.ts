@@ -650,4 +650,15 @@ export default {
     s: "s",
     ms: "ms",
   },
+  cert: {
+    title: "SSL Certificate",
+    status: { https: "HTTPS Enabled", http: "HTTP (No TLS)" },
+    type: { leIp: "Let's Encrypt (IP)", self: "Self-signed", manual: "Manual", none: "None" },
+    field: { type: "Type", ip: "Certificate IP", expiry: "Expiry", daysLeft: "Days Left" },
+    action: { issueIp: "Issue IP Cert", issueSelf: "Self-signed Cert", renew: "Renew", remove: "Disable HTTPS" },
+    precheck: { title: "Pre-check", publicIp: "Public IP", port80: "Port 80", free: "Available", occupied: "In Use", notDetected: "Not detected", warning: "Port 80 will be temporarily used by acme.sh during issuance" },
+    confirm: { issueIp: "Issue Let's Encrypt IP certificate?", issueSelf: "Self-signed certs show browser warnings. Continue?", renew: "Force renew certificate?", remove: "HTTPS will be disabled. Continue?" },
+    hint: { noHttps: "Enable HTTPS to improve security", manualFile: "Use the buttons above, or manually specify the cert file path here" },
+    notify: { issueSuccess: "Certificate issued. Please reconnect via HTTPS", issueSelfSuccess: "Self-signed cert generated. Access via HTTPS (accept browser warning)", renewSuccess: "Certificate renewed", removeSuccess: "HTTPS disabled", failed: "Operation failed" },
+  },
 }

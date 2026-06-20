@@ -48,6 +48,8 @@ var defaultValueMap = map[string]string{
 	"secret":        common.Random(32),
 	"webCertFile":   "",
 	"webKeyFile":    "",
+	"certMode":      "none",
+	"certDomain":    "",
 	"webPath":       "/app/",
 	"webURI":        "",
 	"sessionMaxAge": "0",
@@ -200,6 +202,14 @@ func (s *SettingService) GetCertFile() (string, error) {
 func (s *SettingService) GetKeyFile() (string, error) {
 	return s.getString("webKeyFile")
 }
+
+func (s *SettingService) SetCertFile(v string) error { return s.setString("webCertFile", v) }
+func (s *SettingService) SetKeyFile(v string) error  { return s.setString("webKeyFile", v) }
+func (s *SettingService) SetCertMode(v string) error { return s.setString("certMode", v) }
+func (s *SettingService) SetCertDomain(v string) error { return s.setString("certDomain", v) }
+
+func (s *SettingService) GetCertMode() (string, error)   { return s.getString("certMode") }
+func (s *SettingService) GetCertDomain() (string, error) { return s.getString("certDomain") }
 
 func (s *SettingService) GetWebPath() (string, error) {
 	webPath, err := s.getString("webPath")

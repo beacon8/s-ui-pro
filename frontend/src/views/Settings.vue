@@ -26,6 +26,7 @@
     </v-row>
     <v-window v-model="tab">
       <v-window-item value="t1">
+        <CertCard class="mb-2" />
         <v-row>
           <v-col cols="12" sm="6" md="4">
             <v-text-field v-model="settings.webListen" :label="$t('setting.addr')" hide-details></v-text-field>
@@ -40,10 +41,10 @@
             <v-text-field v-model="settings.webDomain" :label="$t('setting.domain')" hide-details></v-text-field>
           </v-col>
           <v-col cols="12" sm="6" md="4">
-            <v-text-field v-model="settings.webKeyFile" :label="$t('setting.sslKey')" hide-details></v-text-field>
+            <v-text-field v-model="settings.webKeyFile" :label="$t('setting.sslKey')" :hint="$t('cert.hint.manualFile')" persistent-hint></v-text-field>
           </v-col>
           <v-col cols="12" sm="6" md="4">
-            <v-text-field v-model="settings.webCertFile" :label="$t('setting.sslCert')" hide-details></v-text-field>
+            <v-text-field v-model="settings.webCertFile" :label="$t('setting.sslCert')" :hint="$t('cert.hint.manualFile')" persistent-hint></v-text-field>
           </v-col>
           <v-col cols="12" sm="6" md="4">
             <v-text-field v-model="settings.webURI" :label="$t('setting.webUri')" hide-details></v-text-field>
@@ -173,6 +174,7 @@ import HttpUtils from '@/plugins/httputil'
 import { FindDiff } from '@/plugins/utils'
 import SubJsonExtVue from '@/components/SubJsonExt.vue'
 import SubClashExtVue from '@/components/SubClashExt.vue'
+import CertCard from '@/components/CertCard.vue'
 import { push } from 'notivue'
 const tab = ref("t1")
 const loading:Ref = inject('loading')?? ref(false)

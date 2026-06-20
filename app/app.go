@@ -21,6 +21,7 @@ type APP struct {
 	webServer     *web.Server
 	subServer     *sub.Server
 	cronJob       *cronjob.CronJob
+	certService   *service.CertService
 	logger        *logging.Logger
 	core          *core.Core
 }
@@ -50,6 +51,10 @@ func (a *APP) Init() error {
 
 	a.configService = service.NewConfigService(a.core)
 
+	panelService := &service.PanelService{}
+	a.certService = service.NewCertService(&a.SettingService, panelService, a.webServer)
+	a.webServer.SetCertService(a.certService)
+
 	return nil
 }
 
@@ -64,7 +69,7 @@ func (a *APP) Start() error {
 		return err
 	}
 
-	err = a.cronJob.Start(loc, trafficAge)
+	err = a.cronJob.Start(loc, trafficAge, a.certService)
 	if err != nil {
 		return err
 	}
@@ -125,4 +130,11 @@ func (a *APP) RestartApp() {
 
 func (a *APP) GetCore() *core.Core {
 	return a.core
+}
+
+func (a *APP) ReloadWebCert() error {
+	if a.webServer == nil {
+		return nil
+	}
+	return a.webServer.ReloadCert()
 }

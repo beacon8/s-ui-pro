@@ -3,6 +3,7 @@ package api
 import (
 	"strings"
 
+	"github.com/admin8800/s-ui/service"
 	"github.com/admin8800/s-ui/util/common"
 
 	"github.com/gin-gonic/gin"
@@ -13,10 +14,11 @@ type APIHandler struct {
 	apiv2 *APIv2Handler
 }
 
-func NewAPIHandler(g *gin.RouterGroup, a2 *APIv2Handler) {
+func NewAPIHandler(g *gin.RouterGroup, a2 *APIv2Handler, certService *service.CertService) {
 	a := &APIHandler{
 		apiv2: a2,
 	}
+	a.ApiService.certService = certService
 	a.initRouter(g)
 }
 
@@ -62,6 +64,16 @@ func (a *APIHandler) postHandler(c *gin.Context) {
 	case "deleteToken":
 		a.ApiService.DeleteToken(c)
 		a.apiv2.ReloadTokens()
+	case "cert_issueIp":
+		a.ApiService.CertIssueIP(c)
+	case "cert_issueSelf":
+		a.ApiService.CertIssueSelf(c)
+	case "cert_renew":
+		a.ApiService.CertRenew(c)
+	case "cert_remove":
+		a.ApiService.CertRemove(c)
+	case "cert_precheck":
+		a.ApiService.CertPrecheck(c)
 	default:
 		jsonMsg(c, "failed", common.NewError("unknown action: ", action))
 	}
@@ -107,6 +119,8 @@ func (a *APIHandler) getHandler(c *gin.Context) {
 		a.ApiService.GetSingboxConfig(c)
 	case "checkOutbound":
 		a.ApiService.GetCheckOutbound(c)
+	case "cert_status":
+		a.ApiService.CertStatus(c)
 	default:
 		jsonMsg(c, "failed", common.NewError("unknown action: ", action))
 	}
