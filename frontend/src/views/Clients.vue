@@ -28,6 +28,12 @@
     :id="qrcode.id"
     @close="closeQrCode"
   />
+  <ClientLinks
+    v-model="links.visible"
+    :visible="links.visible"
+    :id="links.id"
+    @close="closeLinks"
+  />
   <Stats
     v-model="stats.visible"
     :visible="stats.visible"
@@ -235,6 +241,13 @@
         >
           mdi-qrcode
         </v-icon>
+        <v-icon
+          class="me-2"
+          @click="showLinks(item.id)"
+        >
+          mdi-link-variant
+          <v-tooltip activator="parent" location="top" :text="$t('client.links')"></v-tooltip>
+        </v-icon>
         <v-icon icon="mdi-chart-line" @click="showStats(item.name)" v-if="Data().enableTraffic">
           <v-tooltip activator="parent" location="top" :text="$t('stats.graphTitle')"></v-tooltip>
         </v-icon>
@@ -258,6 +271,7 @@ import ClientModal from '@/layouts/modals/Client.vue'
 import ClientAddBulk from '@/layouts/modals/ClientAddBulk.vue'
 import ClientEditBulk from '@/layouts/modals/ClientEditBulk.vue'
 import QrCode from '@/layouts/modals/QrCode.vue'
+import ClientLinks from '@/layouts/modals/ClientLinks.vue'
 import Stats from '@/layouts/modals/Stats.vue'
 import TopUsers from '@/layouts/modals/TopUsers.vue'
 import { Client } from '@/types/clients'
@@ -360,6 +374,19 @@ const showQrCode = (id: number) => {
 }
 const closeQrCode = () => {
   qrcode.value.visible = false
+}
+
+const links = ref({
+  visible: false,
+  id: 0,
+})
+
+const showLinks = (id: number) => {
+  links.value.id = id
+  links.value.visible = true
+}
+const closeLinks = () => {
+  links.value.visible = false
 }
 
 const stats = ref({
