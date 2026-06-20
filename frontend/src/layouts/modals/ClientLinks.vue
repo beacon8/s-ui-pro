@@ -65,7 +65,7 @@
             ></v-text-field>
           </v-window-item>
           <v-window-item value="link" class="px-4 pb-4">
-            <div v-for="l in clientLinks" :key="l.uri" class="mb-3">
+            <div v-for="l in displayLinks" :key="l.uri" class="mb-3">
               <v-chip size="small" class="mb-1">{{ client.name }}</v-chip>
               <v-text-field
                 readonly
@@ -145,6 +145,14 @@ export default {
     },
     clientLinks() {
       return this.client.links ?? []
+    },
+    displayLinks() {
+      const name = this.client.name ?? ''
+      return this.clientLinks.map((l: any) => {
+        const uri = l.uri ?? ''
+        const idx = uri.lastIndexOf('#')
+        return { ...l, uri: idx >= 0 ? uri.slice(0, idx + 1) + encodeURIComponent(name) : uri }
+      })
     },
   },
   watch: {
