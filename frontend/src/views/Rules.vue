@@ -91,39 +91,45 @@
   </v-row>
   <v-row>
     <v-col class="v-card-subtitle" cols="12">{{ $t('rule.ruleset') }}</v-col>
-    <v-col cols="12" sm="4" md="3" lg="2" v-for="{ item, index } in <any[]>pagedRulesets" :key="item.tag">
-      <v-card rounded="xl" elevation="5" min-width="200" :title="item.tag">
-        <v-card-subtitle style="margin-top: -15px;">
-          <v-row><v-col>{{ $t('ruleset.' + item.type) }}</v-col></v-row>
-        </v-card-subtitle>
-        <v-card-text>
-          <v-row><v-col>{{ $t('ruleset.format') }}</v-col><v-col>{{ item.format }}</v-col></v-row>
-          <v-row><v-col>{{ $t('objects.outbound') }}</v-col><v-col>{{ item.download_detour ?? '-' }}</v-col></v-row>
-          <v-row><v-col>{{ $t('actions.update') }}</v-col><v-col>{{ item.update_interval ?? '-' }}</v-col></v-row>
-        </v-card-text>
-        <v-divider></v-divider>
-        <v-card-actions style="padding: 0;">
-          <v-btn icon="mdi-file-edit" @click="showRulesetModal(index)">
-            <v-icon /><v-tooltip activator="parent" location="top" :text="$t('actions.edit')"></v-tooltip>
-          </v-btn>
-          <v-btn icon="mdi-file-remove" style="margin-inline-start:0;" color="warning" @click="delRulesetOverlay[index] = true">
-            <v-icon /><v-tooltip activator="parent" location="top" :text="$t('actions.del')"></v-tooltip>
-          </v-btn>
-          <v-overlay v-model="delRulesetOverlay[index]" contained class="align-center justify-center">
+    <v-col cols="12">
+      <v-data-table
+        :headers="rulesetHeaders"
+        :items="<any[]>rulesets"
+        :items-per-page="itemPerPage"
+        @update:items-per-page="setItemPerPage($event)"
+        :hide-default-footer="rulesets.length<=10"
+        hide-no-data
+        fixed-header
+        item-value="tag"
+        :mobile="smAndDown"
+        mobile-breakpoint="sm"
+        width="100%"
+        class="elevation-3 rounded"
+      >
+        <template v-slot:item.actions="{ item }">
+          <v-icon class="me-2" @click="showRulesetModal(rulesets.findIndex(r => r.tag == item.tag))">mdi-file-edit</v-icon>
+          <v-menu
+            v-model="delRulesetOverlay[rulesets.findIndex(r => r.tag == item.tag)]"
+            :close-on-content-click="false"
+            location="top center"
+          >
+            <template v-slot:activator="{ props }">
+              <v-icon class="me-2" color="warning" v-bind="props">mdi-file-remove</v-icon>
+            </template>
             <v-card :title="$t('actions.del')" rounded="lg">
               <v-divider></v-divider>
               <v-card-text>{{ $t('confirm') }}</v-card-text>
               <v-card-actions>
-                <v-btn color="error" variant="outlined" @click="delRuleset(index)">{{ $t('yes') }}</v-btn>
-                <v-btn color="success" variant="outlined" @click="delRulesetOverlay[index] = false">{{ $t('no') }}</v-btn>
+                <v-btn color="error" variant="outlined" @click="delRuleset(rulesets.findIndex(r => r.tag == item.tag))">{{ $t('yes') }}</v-btn>
+                <v-btn color="success" variant="outlined" @click="delRulesetOverlay[rulesets.findIndex(r => r.tag == item.tag)] = false">{{ $t('no') }}</v-btn>
               </v-card-actions>
             </v-card>
-          </v-overlay>
-        </v-card-actions>
-      </v-card>
-    </v-col>
-    <v-col cols="12" v-if="rulesetPageCount > 1">
-      <v-pagination v-model="rulesetPage" :length="rulesetPageCount" :total-visible="7" density="comfortable"></v-pagination>
+          </v-menu>
+        </template>
+        <template v-slot:item.type="{ item }">{{ $t('ruleset.' + item.type) }}</template>
+        <template v-slot:item.download_detour="{ item }">{{ item.download_detour ?? '-' }}</template>
+        <template v-slot:item.update_interval="{ item }">{{ item.update_interval ?? '-' }}</template>
+      </v-data-table>
     </v-col>
   </v-row>
   <v-row>
@@ -139,50 +145,67 @@
         variant="outlined"
       ></v-text-field>
     </v-col>
-    <v-col cols="12"></v-col>
-    <v-col cols="12" sm="4" md="3" lg="2" v-for="{ item, index } in <any[]>pagedRules"
-        :key="item.id" :draggable="true"
-        @dragstart="onDragStart(index)" @dragover.prevent @drop="onDrop(index)">
-      <v-card rounded="xl" elevation="5" min-width="200" :title="index+1">
-        <v-card-subtitle style="margin-top: -15px;">
-          <v-row><v-col>{{ item.type != undefined ? $t('rule.logical') + ' (' + item.mode + ')' : $t('rule.simple') }}</v-col></v-row>
-        </v-card-subtitle>
-        <v-card-text>
-          <v-row><v-col>{{ $t('admin.action') }}</v-col><v-col>{{ item.action }}</v-col></v-row>
-          <v-row><v-col>{{ $t('objects.outbound') }}</v-col><v-col>{{ item.outbound ?? '-' }}</v-col></v-row>
-          <v-row><v-col>{{ $t('pages.rules') }}</v-col><v-col>{{ item.rules ? item.rules.length : Object.keys(item).filter(r => !actionKeys.includes(r)).length }}</v-col></v-row>
-          <v-row><v-col>{{ $t('rule.invert') }}</v-col><v-col>{{ $t((item.invert ?? false) ? 'yes' : 'no') }}</v-col></v-row>
-        </v-card-text>
-        <v-divider></v-divider>
-        <v-card-actions style="padding: 0;">
-          <v-btn icon="mdi-file-edit" @click="showRuleModal(index)">
-            <v-icon /><v-tooltip activator="parent" location="top" :text="$t('actions.edit')"></v-tooltip>
-          </v-btn>
-          <v-btn icon="mdi-file-remove" style="margin-inline-start:0;" color="warning" @click="delRuleOverlay[index] = true">
-            <v-icon /><v-tooltip activator="parent" location="top" :text="$t('actions.del')"></v-tooltip>
-          </v-btn>
-          <v-overlay v-model="delRuleOverlay[index]" contained class="align-center justify-center">
+    <v-col cols="12">
+      <v-data-table
+        :headers="ruleHeaders"
+        :items="<any[]>displayRules"
+        :items-per-page="itemPerPage"
+        @update:items-per-page="setItemPerPage($event)"
+        :hide-default-footer="displayRules.length<=10"
+        hide-no-data
+        fixed-header
+        item-value="_idx"
+        :mobile="smAndDown"
+        mobile-breakpoint="sm"
+        width="100%"
+        class="elevation-3 rounded"
+      >
+        <template v-slot:item.order="{ item }">
+          <span
+            :draggable="true"
+            @dragstart="onDragStart(item._idx)" @dragover.prevent @drop="onDrop(item._idx)"
+            style="cursor: move;"
+          >
+            <v-icon size="small" icon="mdi-drag" /> {{ item._idx + 1 }}
+          </span>
+        </template>
+        <template v-slot:item.actions="{ item }">
+          <v-icon class="me-2" @click="showRuleModal(item._idx)">mdi-file-edit</v-icon>
+          <v-menu
+            v-model="delRuleOverlay[item._idx]"
+            :close-on-content-click="false"
+            location="top center"
+          >
+            <template v-slot:activator="{ props }">
+              <v-icon class="me-2" color="warning" v-bind="props">mdi-file-remove</v-icon>
+            </template>
             <v-card :title="$t('actions.del')" rounded="lg">
               <v-divider></v-divider>
               <v-card-text>{{ $t('confirm') }}</v-card-text>
               <v-card-actions>
-                <v-btn color="error" variant="outlined" @click="delRule(index)">{{ $t('yes') }}</v-btn>
-                <v-btn color="success" variant="outlined" @click="delRuleOverlay[index] = false">{{ $t('no') }}</v-btn>
+                <v-btn color="error" variant="outlined" @click="delRule(item._idx)">{{ $t('yes') }}</v-btn>
+                <v-btn color="success" variant="outlined" @click="delRuleOverlay[item._idx] = false">{{ $t('no') }}</v-btn>
               </v-card-actions>
             </v-card>
-          </v-overlay>
-        </v-card-actions>
-      </v-card>
-    </v-col>
-    <v-col cols="12" v-if="rulePageCount > 1">
-      <v-pagination v-model="rulePage" :length="rulePageCount" :total-visible="7" density="comfortable"></v-pagination>
+          </v-menu>
+        </template>
+        <template v-slot:item.kind="{ item }">
+          {{ item.type != undefined ? $t('rule.logical') + ' (' + item.mode + ')' : $t('rule.simple') }}
+        </template>
+        <template v-slot:item.action="{ item }">{{ item.action }}</template>
+        <template v-slot:item.outbound="{ item }">{{ item.outbound ?? '-' }}</template>
+        <template v-slot:item.count="{ item }">
+          {{ item.rules ? item.rules.length : Object.keys(item).filter(r => !actionKeys.includes(r) && r != '_idx').length }}
+        </template>
+        <template v-slot:item.invert="{ item }">{{ $t((item.invert ?? false) ? 'yes' : 'no') }}</template>
+      </v-data-table>
     </v-col>
   </v-row>
 </template>
 
 <script lang="ts" setup>
 import Data from '@/store/modules/data'
-import { computed, ref, onBeforeMount, watch } from 'vue'
+import { computed, ref, onBeforeMount } from 'vue'
 import RuleVue from '@/layouts/modals/Rule.vue'
 import RulesetVue from '@/layouts/modals/Ruleset.vue'
 import RulesetImport from '@/layouts/modals/RulesetImport.vue'
@@ -192,6 +215,10 @@ import { actionKeys, ruleset } from '@/types/rules'
 import { FindDiff } from '@/plugins/utils'
 import { push } from 'notivue'
 import { useI18n } from 'vue-i18n'
+import { useDisplay } from 'vuetify'
+import { i18n } from '@/locales'
+
+const { smAndDown } = useDisplay()
 
 const oldConfig = ref({})
 const loading = ref(false)
@@ -246,33 +273,40 @@ const rulesets = computed((): any[] => {
 
 const rulesetTags = computed((): string[] => rulesets.value.map((rs:any) => rs.tag))
 
-const pageSize = 60
-
-const rulePage = ref(1)
 const searchRuleOut = ref('')
-const filteredRules = computed(() => {
+
+// 给每条规则打上全局索引 _idx，再按出站(outbound)模糊过滤；表格自带分页
+const displayRules = computed(() => {
+  const list = rules.value.map((item:any, index:number) => ({ ...item, _idx: index }))
   const q = searchRuleOut.value?.trim().toLowerCase()
-  if (!q) return rules.value.map((item:any, index:number) => ({ item, index }))
-  return rules.value
-    .map((item:any, index:number) => ({ item, index }))
-    .filter(({ item }) => (item.outbound ?? '').toLowerCase().includes(q))
+  if (!q) return list
+  return list.filter((r:any) => (r.outbound ?? '').toLowerCase().includes(q))
 })
-const rulePageCount = computed(() => Math.max(1, Math.ceil(filteredRules.value.length / pageSize)))
-const pagedRules = computed(() => {
-  const start = (rulePage.value - 1) * pageSize
-  return filteredRules.value.slice(start, start + pageSize)
-})
-watch(rulePageCount, (n) => { if (rulePage.value > n) rulePage.value = n })
-watch(searchRuleOut, () => { rulePage.value = 1 })
 
-const rulesetPage = ref(1)
-const rulesetPageCount = computed(() => Math.max(1, Math.ceil(rulesets.value.length / pageSize)))
-const pagedRulesets = computed(() => {
-  const start = (rulesetPage.value - 1) * pageSize
-  return rulesets.value.slice(start, start + pageSize).map((item, i) => ({ item, index: start + i }))
-})
-watch(rulesetPageCount, (n) => { if (rulesetPage.value > n) rulesetPage.value = n })
+const itemPerPage = ref(localStorage.getItem('items-per-page') || '10')
+const setItemPerPage = (items: number) => {
+  itemPerPage.value = items.toString()
+  localStorage.setItem('items-per-page', items.toString())
+}
 
+const ruleHeaders = [
+  { title: i18n.global.t('actions.action'), key: 'actions', sortable: false },
+  { title: '#', key: 'order', sortable: false },
+  { title: i18n.global.t('type'), key: 'kind', sortable: false },
+  { title: i18n.global.t('admin.action'), key: 'action' },
+  { title: i18n.global.t('objects.outbound'), key: 'outbound' },
+  { title: i18n.global.t('pages.rules'), key: 'count', sortable: false },
+  { title: i18n.global.t('rule.invert'), key: 'invert', sortable: false },
+]
+
+const rulesetHeaders = [
+  { title: i18n.global.t('actions.action'), key: 'actions', sortable: false },
+  { title: i18n.global.t('objects.tag'), key: 'tag' },
+  { title: i18n.global.t('type'), key: 'type' },
+  { title: i18n.global.t('ruleset.format'), key: 'format' },
+  { title: i18n.global.t('objects.outbound'), key: 'download_detour' },
+  { title: i18n.global.t('actions.update'), key: 'update_interval' },
+]
 
 const outboundTags = computed((): string[] => [
   ...Data().outbounds?.map((o:any) => o.tag),

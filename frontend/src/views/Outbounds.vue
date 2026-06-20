@@ -52,112 +52,70 @@
     </v-col>
   </v-row>
   <v-row>
-    <v-col cols="12" sm="4" md="3" lg="2" v-for="{ item, index } in <any[]>pagedOutbounds" :key="item.tag">
-      <v-card rounded="xl" elevation="5" min-width="200" :title="item.tag">
-        <v-card-subtitle style="margin-top: -15px;">
-          <v-row>
-            <v-col>{{ item.type }}</v-col>
-          </v-row>
-        </v-card-subtitle>
-        <v-card-text>
-          <v-row>
-            <v-col>{{ $t('in.addr') }}</v-col>
-            <v-col>
-              {{ item.server?? '-' }}
-            </v-col>
-          </v-row>
-          <v-row>
-            <v-col>{{ $t('in.port') }}</v-col>
-            <v-col>
-              {{ item.server_port?? '-' }}
-            </v-col>
-          </v-row>
-          <v-row>
-            <v-col>{{ $t('objects.tls') }}</v-col>
-            <v-col>
-              {{ Object.hasOwn(item,'tls') ? $t(item.tls?.enabled ? 'enable' : 'disable') : '-'  }}
-            </v-col>
-          </v-row>
-          <v-row>
-            <v-col>{{ $t('online') }}</v-col>
-            <v-col>
-              <template v-if="onlines.includes(item.tag)">
-                <v-chip density="comfortable" size="small" color="success" variant="flat">{{ $t('online') }}</v-chip>
-              </template>
-              <template v-else>-</template>
-            </v-col>
-          </v-row>
-          <v-row>
-            <v-col>{{ $t('out.delay') }}</v-col>
-            <v-col>
-              <v-progress-circular
-                v-if="checkResults[item.tag]?.loading"
-                indeterminate
-                size="20"
-              />
-              <v-icon
-                icon="mdi-speedometer"
-                v-else
-                @click="checkOutbound(item.tag)"
-              >
-                <v-tooltip activator="parent" location="top" :text="$t('actions.test')"></v-tooltip>
-              </v-icon>
-              <template v-if="checkResults[item.tag]?.loading == false">
-                <template v-if="checkResults[item.tag]">
-                  <v-chip
-                    v-if="checkResults[item.tag].success"
-                    density="compact"
-                    size="small"
-                    color="success"
-                    variant="flat"
-                  >
-                    {{ checkResults[item.tag].data?.Delay + $t('date.ms') }}
-                  </v-chip>
-                  <v-tooltip v-else location="top" :text="checkResults[item.tag].errorMessage || $t('failed')">
-                    <template v-slot:activator="{ props }">
-                      <v-icon v-bind="props" size="small" color="error" icon="mdi-close-circle" />
-                    </template>
-                  </v-tooltip>
-                </template>
-              </template>
-            </v-col>
-          </v-row>
-        </v-card-text>
-        <v-divider></v-divider>
-        <v-card-actions style="padding: 0;">
-          <v-btn icon="mdi-file-edit" @click="showModal(item.id)">
-            <v-icon />
-            <v-tooltip activator="parent" location="top" :text="$t('actions.edit')"></v-tooltip>
-          </v-btn>
-          <v-btn icon="mdi-file-remove" style="margin-inline-start:0;" color="warning" @click="delOverlay[index] = true">
-            <v-icon />
-            <v-tooltip activator="parent" location="top" :text="$t('actions.del')"></v-tooltip>
-          </v-btn>
-          <v-overlay
-            v-model="delOverlay[index]"
-            contained
-            class="align-center justify-center"
+    <v-col cols="12">
+      <v-data-table
+        :headers="headers"
+        :items="<any[]>outbounds"
+        :search="searchTag"
+        :custom-filter="filterByTag"
+        :items-per-page="itemPerPage"
+        @update:items-per-page="setItemPerPage($event)"
+        :hide-default-footer="outbounds.length<=10"
+        hide-no-data
+        fixed-header
+        item-value="tag"
+        :mobile="smAndDown"
+        mobile-breakpoint="sm"
+        width="100%"
+        class="elevation-3 rounded"
+      >
+        <template v-slot:item.actions="{ item }">
+          <v-icon class="me-2" @click="showModal(item.id)">mdi-file-edit</v-icon>
+          <v-menu
+            v-model="delOverlay[outbounds.findIndex(o => o.tag == item.tag)]"
+            :close-on-content-click="false"
+            location="top center"
           >
+            <template v-slot:activator="{ props }">
+              <v-icon class="me-2" color="warning" v-bind="props">mdi-file-remove</v-icon>
+            </template>
             <v-card :title="$t('actions.del')" rounded="lg">
               <v-divider></v-divider>
               <v-card-text>{{ $t('confirm') }}</v-card-text>
               <v-card-actions>
                 <v-btn color="error" variant="outlined" @click="delOutbound(item.tag)">{{ $t('yes') }}</v-btn>
-                <v-btn color="success" variant="outlined" @click="delOverlay[index] = false">{{ $t('no') }}</v-btn>
+                <v-btn color="success" variant="outlined" @click="delOverlay[outbounds.findIndex(o => o.tag == item.tag)] = false">{{ $t('no') }}</v-btn>
               </v-card-actions>
             </v-card>
-          </v-overlay>
-          <v-btn icon="mdi-chart-line" @click="showStats(item.tag)" v-if="Data().enableTraffic">
-            <v-icon />
+          </v-menu>
+          <v-icon class="me-2" icon="mdi-chart-line" @click="showStats(item.tag)" v-if="Data().enableTraffic">
             <v-tooltip activator="parent" location="top" :text="$t('stats.graphTitle')"></v-tooltip>
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-col>
-  </v-row>
-  <v-row v-if="pageCount > 1" justify="center">
-    <v-col cols="12">
-      <v-pagination v-model="page" :length="pageCount" :total-visible="7" density="comfortable"></v-pagination>
+          </v-icon>
+        </template>
+        <template v-slot:item.tls="{ item }">
+          {{ Object.hasOwn(item,'tls') ? $t(item.tls?.enabled ? 'enable' : 'disable') : '-' }}
+        </template>
+        <template v-slot:item.online="{ item }">
+          <v-chip v-if="onlines.includes(item.tag)" density="comfortable" size="small" color="success" variant="flat">{{ $t('online') }}</v-chip>
+          <template v-else>-</template>
+        </template>
+        <template v-slot:item.delay="{ item }">
+          <v-progress-circular v-if="checkResults[item.tag]?.loading" indeterminate size="20" />
+          <v-icon icon="mdi-speedometer" v-else @click="checkOutbound(item.tag)">
+            <v-tooltip activator="parent" location="top" :text="$t('actions.test')"></v-tooltip>
+          </v-icon>
+          <template v-if="checkResults[item.tag]?.loading == false && checkResults[item.tag]">
+            <v-chip v-if="checkResults[item.tag].success" density="compact" size="small" color="success" variant="flat">
+              {{ checkResults[item.tag].data?.Delay + $t('date.ms') }}
+            </v-chip>
+            <v-tooltip v-else location="top" :text="checkResults[item.tag].errorMessage || $t('failed')">
+              <template v-slot:activator="{ props }">
+                <v-icon v-bind="props" size="small" color="error" icon="mdi-close-circle" />
+              </template>
+            </v-tooltip>
+          </template>
+        </template>
+      </v-data-table>
     </v-col>
   </v-row>
 </template>
@@ -169,7 +127,11 @@ import OutboundVue from '@/layouts/modals/Outbound.vue'
 import OutboundBulk from '@/layouts/modals/OutboundBulk.vue'
 import Stats from '@/layouts/modals/Stats.vue'
 import { Outbound } from '@/types/outbounds'
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
+import { useDisplay } from 'vuetify'
+import { i18n } from '@/locales'
+
+const { smAndDown } = useDisplay()
 
 interface CheckResult {
   loading?: boolean
@@ -209,24 +171,30 @@ const outbounds = computed((): Outbound[] => {
 })
 
 const searchTag = ref('')
-const filteredOutbounds = computed((): Outbound[] => {
-  const q = searchTag.value?.trim().toLowerCase()
-  if (!q) return outbounds.value
-  return outbounds.value.filter((o:any) => (o.tag ?? '').toLowerCase().includes(q))
-})
 
-const pageSize = 60
-const page = ref(1)
-const pageCount = computed(() => Math.max(1, Math.ceil(filteredOutbounds.value.length / pageSize)))
-const pagedOutbounds = computed(() => {
-  const start = (page.value - 1) * pageSize
-  return filteredOutbounds.value
-    .slice(start, start + pageSize)
-    .map((item) => ({ item, index: outbounds.value.indexOf(item) }))
-})
+// 仅按 tag 模糊过滤
+const filterByTag = (_value: any, query: string, item: any): boolean => {
+  if (!query) return true
+  const tag = (item?.raw?.tag ?? '').toLowerCase()
+  return tag.includes(query.toLowerCase())
+}
 
-watch(pageCount, (n) => { if (page.value > n) page.value = n })
-watch(searchTag, () => { page.value = 1 })
+const headers = [
+  { title: i18n.global.t('actions.action'), key: 'actions', sortable: false },
+  { title: i18n.global.t('objects.tag'), key: 'tag' },
+  { title: i18n.global.t('type'), key: 'type' },
+  { title: i18n.global.t('in.addr'), key: 'server' },
+  { title: i18n.global.t('in.port'), key: 'server_port' },
+  { title: i18n.global.t('objects.tls'), key: 'tls', sortable: false },
+  { title: i18n.global.t('online'), key: 'online', sortable: false },
+  { title: i18n.global.t('out.delay'), key: 'delay', sortable: false },
+]
+
+const itemPerPage = ref(localStorage.getItem('items-per-page') || '10')
+const setItemPerPage = (items: number) => {
+  itemPerPage.value = items.toString()
+  localStorage.setItem('items-per-page', items.toString())
+}
 
 const outboundTags = computed((): string[] => {
   return [...Data().outbounds?.map((o:Outbound) => o.tag), ...Data().endpoints?.map((e:any) => e.tag)]
