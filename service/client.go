@@ -273,7 +273,7 @@ func (s *ClientService) updateLinksWithFixedInbounds(tx *gorm.DB, clients []*mod
 
 		newClientLinks := []map[string]string{}
 		for _, inbound := range inbounds {
-			newLinks := util.LinkGenerator(client.Config, &inbound, hostname)
+			newLinks := util.LinkGenerator(client.Config, &inbound, hostname, client.Name)
 			for _, newLink := range newLinks {
 				newClientLinks = append(newClientLinks, map[string]string{
 					"remark": inbound.Tag,
@@ -322,7 +322,7 @@ func (s *ClientService) UpdateClientsOnInboundAdd(tx *gorm.DB, initIds string, i
 		// Add links
 		var clientLinks, newClientLinks []map[string]string
 		json.Unmarshal(client.Links, &clientLinks)
-		newLinks := util.LinkGenerator(client.Config, &inbound, hostname)
+		newLinks := util.LinkGenerator(client.Config, &inbound, hostname, client.Name)
 		for _, newLink := range newLinks {
 			newClientLinks = append(newClientLinks, map[string]string{
 				"remark": inbound.Tag,
@@ -414,7 +414,7 @@ func (s *ClientService) UpdateLinksByInboundChange(tx *gorm.DB, inbounds *[]mode
 		for _, client := range clients {
 			var clientLinks, newClientLinks []map[string]string
 			json.Unmarshal(client.Links, &clientLinks)
-			newLinks := util.LinkGenerator(client.Config, &inbound, hostname)
+			newLinks := util.LinkGenerator(client.Config, &inbound, hostname, client.Name)
 			for _, newLink := range newLinks {
 				newClientLinks = append(newClientLinks, map[string]string{
 					"remark": inbound.Tag,

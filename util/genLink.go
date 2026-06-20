@@ -18,7 +18,7 @@ type LinkParam struct {
 	Value string
 }
 
-func LinkGenerator(clientConfig json.RawMessage, i *model.Inbound, hostname string) []string {
+func LinkGenerator(clientConfig json.RawMessage, i *model.Inbound, hostname string, clientName string) []string {
 	inbound, err := i.MarshalFull()
 	if err != nil {
 		return []string{}
@@ -42,7 +42,7 @@ func LinkGenerator(clientConfig json.RawMessage, i *model.Inbound, hostname stri
 		Addrs = append(Addrs, map[string]interface{}{
 			"server":      hostname,
 			"server_port": (*inbound)["listen_port"],
-			"remark":      i.Tag,
+			"remark":      clientName,
 		})
 		if i.TlsId > 0 {
 			Addrs[0]["tls"] = tls
@@ -50,7 +50,7 @@ func LinkGenerator(clientConfig json.RawMessage, i *model.Inbound, hostname stri
 	} else {
 		for index, addr := range Addrs {
 			addrRemark, _ := addr["remark"].(string)
-			Addrs[index]["remark"] = i.Tag + addrRemark
+			Addrs[index]["remark"] = clientName + addrRemark
 			if i.TlsId > 0 {
 				newTls := map[string]interface{}{}
 				for k, v := range tls {
