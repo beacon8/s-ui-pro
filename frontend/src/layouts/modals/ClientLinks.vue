@@ -150,6 +150,13 @@ export default {
       const name = this.client.name ?? ''
       return this.clientLinks.map((l: any) => {
         const uri = l.uri ?? ''
+        if (uri.startsWith('vmess://')) {
+          try {
+            const json = JSON.parse(decodeURIComponent(escape(atob(uri.slice('vmess://'.length)))))
+            json.ps = name
+            return { ...l, uri: 'vmess://' + btoa(unescape(encodeURIComponent(JSON.stringify(json)))) }
+          } catch { return l }
+        }
         const idx = uri.lastIndexOf('#')
         return { ...l, uri: idx >= 0 ? uri.slice(0, idx + 1) + encodeURIComponent(name) : uri }
       })
