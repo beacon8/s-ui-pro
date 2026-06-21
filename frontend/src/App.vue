@@ -34,10 +34,13 @@ document.title = "S-UI " + document.location.hostname
 
 /* ===== Ant Design 风格全局覆盖 ===== */
 
-/* 卡片：Antd 风格边框 + 柔和阴影 */
+/* 卡片：Antd 风格边框 + 柔和阴影
+   - overflow: visible 必须写，用于覆盖 Vuetify 内置 @layer 中的 overflow: hidden
+   - 否则浮动 label 会在卡片边界被裁剪 */
 .v-card {
   border-color: #d9d9d9 !important;
   box-shadow: 0 1px 2px -2px rgba(0,0,0,0.16), 0 3px 6px 0 rgba(0,0,0,0.12), 0 5px 12px 4px rgba(0,0,0,0.08) !important;
+  overflow: visible;
 }
 .v-card--variant-elevated {
   box-shadow: 0 1px 2px -2px rgba(0,0,0,0.16), 0 3px 6px 0 rgba(0,0,0,0.12), 0 5px 12px 4px rgba(0,0,0,0.08) !important;
@@ -59,7 +62,12 @@ document.title = "S-UI " + document.location.hostname
 
 /* 弹窗滚动区：补顶部 padding，防止浮动 label 上半部分被裁 */
 .v-card-text[style*="overflow-y"] {
-  padding-top: 16px !important;
+  padding-top: 20px !important;
+}
+
+/* 覆盖 Vuetify @layer 中的 overflow: hidden，防止标签页内容中的浮动 label 被裁剪 */
+.v-card .v-window {
+  overflow: visible;
 }
 
 /* 按钮：Antd 默认尺寸，更紧凑 */

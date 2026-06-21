@@ -21,7 +21,7 @@
             {{ $t('rule.import.uploadTxt') }}
           </v-tab>
         </v-tabs>
-        <v-window v-model="tab" class="mb-4">
+        <v-window v-model="tab" style="margin-top: 16px;" class="mb-4">
           <v-window-item value="text">
             <v-alert variant="text" type="info">{{ $t('rule.import.urlsHint') }}</v-alert>
             <v-textarea

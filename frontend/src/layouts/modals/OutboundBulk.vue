@@ -14,7 +14,7 @@
             </v-tabs>
           </v-col>
           <v-col cols="12">
-            <v-window v-model="mode">
+            <v-window v-model="mode" style="margin-top: 16px;">
               <v-window-item value="url">
                 <v-text-field v-model="link"
                   dir="ltr"

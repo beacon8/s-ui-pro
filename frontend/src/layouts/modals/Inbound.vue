@@ -37,7 +37,7 @@
             <v-tab value="s">{{ $t('in.sSide') }}</v-tab>
             <v-tab value="c">{{ $t('in.cSide') }}</v-tab>
           </v-tabs>
-          <v-window v-model="side" style="margin-top: 10px;">
+          <v-window v-model="side" style="margin-top: 16px;">
             <v-window-item value="s">
               <Listen :data="inbound" :inTags="inTags" v-if="inbound.type != inTypes.Tun" />
               <Direct v-if="inbound.type == inTypes.Direct" :data="inbound" />

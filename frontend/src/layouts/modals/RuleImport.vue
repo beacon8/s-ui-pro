@@ -21,7 +21,7 @@
           <v-tab value="url">{{ $t('rule.import.fromUrl') }}</v-tab>
         </v-tabs>
 
-        <v-window v-model="tab">
+        <v-window v-model="tab" style="margin-top: 16px;">
           <v-window-item value="json">
             <v-alert variant="text" type="info">{{ $t('rule.import.jsonHint') }}</v-alert>
             <v-textarea

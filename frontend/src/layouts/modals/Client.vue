@@ -21,7 +21,7 @@
             <v-tab value="t2">{{ $t('client.config') }}</v-tab>
             <v-tab value="t3">{{ $t('client.links') }}</v-tab>
           </v-tabs>
-          <v-window v-model="tab" style="margin-top: 12px;">
+          <v-window v-model="tab" style="margin-top: 16px;">
             <v-window-item value="t1">
               <v-row>
                 <v-col cols="12" sm="6" md="4">
