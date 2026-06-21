@@ -1,21 +1,10 @@
 <template>
-  <v-navigation-drawer
-    v-model="showDrawer"
-    :temporary="isMobile"
-    :expand-on-hover="!isMobile"
-    :rail="!isMobile"
-    :permanent="!isMobile"
-    @click="isMobile ? $emit('toggleDrawer') : null"
-  >
+  <v-navigation-drawer v-model="showDrawer">
     <v-list-item
       height="63"
       prepend-avatar="@/assets/logo.svg"
       title="S-UI"
-    >
-      <template v-slot:append v-if="isMobile">
-        <v-icon icon="mdi-close" />
-      </template>
-    </v-list-item>
+    />
 
     <v-divider></v-divider>
 
@@ -42,7 +31,7 @@ import { computed } from 'vue'
 import router from '@/router'
 import { logout } from '@/plugins/httputil'
 
-const props = defineProps(['isMobile','displayDrawer'])
+const props = defineProps(['displayDrawer'])
 
 const showDrawer = computed((): boolean => {
   return props.displayDrawer

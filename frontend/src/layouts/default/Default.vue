@@ -14,16 +14,16 @@ import DefaultView from './View.vue'
 import { useDisplay } from 'vuetify'
 
 const { smAndDown } = useDisplay()
-const displayDrawer = ref(false)
+
+const drawerState = localStorage.getItem('drawer')
+const displayDrawer = ref(drawerState !== null ? drawerState === 'true' : true)
 
 const toggleDrawer = () => {
   displayDrawer.value = !displayDrawer.value
+  localStorage.setItem('drawer', String(displayDrawer.value))
 }
 
-const isMobile = computed( ():boolean =>{
-  displayDrawer.value = !smAndDown.value
-  return smAndDown.value
-})
+const isMobile = computed(() => smAndDown.value)
 </script>
 
 <style>

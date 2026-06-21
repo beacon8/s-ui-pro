@@ -1,7 +1,6 @@
 <template>
   <v-app-bar :elevation="5">
-    <v-icon v-if="isMobile" icon="mdi-menu" @click="$emit('toggleDrawer')" />
-    <span v-else style="width: 24px"></span>
+    <v-icon icon="mdi-menu" @click="$emit('toggleDrawer')" />
     <v-app-bar-title :text="$t(<string>route.name)" class="align-center text-center " />
     <v-menu>
       <template v-slot:activator="{ props }">
@@ -46,8 +45,6 @@ import { useLocale, useTheme } from 'vuetify'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { languages } from '@/locales'
-
-defineProps(['isMobile'])
 
 const route = useRoute()
 const { locale: i18nLocale } = useI18n()
