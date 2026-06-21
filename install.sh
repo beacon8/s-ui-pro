@@ -41,19 +41,19 @@ echo "架构：$(arch)"
 install_base() {
     case "${release}" in
     centos | almalinux | rocky | oracle)
-        yum -y update && yum install -y -q wget curl tar tzdata socat cronie
+        yum -y update && yum install -y -q wget curl tar tzdata
         ;;
     fedora)
-        dnf -y update && dnf install -y -q wget curl tar tzdata socat cronie
+        dnf -y update && dnf install -y -q wget curl tar tzdata
         ;;
     arch | manjaro | parch)
-        pacman -Syu && pacman -Syu --noconfirm wget curl tar tzdata socat cronie
+        pacman -Syu && pacman -Syu --noconfirm wget curl tar tzdata
         ;;
     opensuse-tumbleweed)
-        zypper refresh && zypper -q install -y wget curl tar timezone socat cron
+        zypper refresh && zypper -q install -y wget curl tar timezone
         ;;
     *)
-        apt-get update && apt-get install -y -q wget curl tar tzdata socat cron
+        apt-get update && apt-get install -y -q wget curl tar tzdata
         ;;
     esac
 }
@@ -116,32 +116,6 @@ config_after_install() {
     fi
 }
 
-ask_ssl_strategy() {
-    echo -e "${yellow}是否为面板配置 SSL 证书？${plain}"
-    echo -e "  ${green}1.${plain} Let's Encrypt IP 证书（推荐，需公网 IP 和 80 端口可用）"
-    echo -e "  ${green}2.${plain} 自签证书（浏览器会警告，但可用）"
-    echo -e "  ${green}3.${plain} 跳过（之后可在面板内配置）"
-    read -p "请选择 [1/2/3，默认 3]: " ssl_choice
-    ssl_choice=${ssl_choice:-3}
-
-    case "$ssl_choice" in
-        1)
-            echo -e "${yellow}正在申请 Let's Encrypt IP 证书...${plain}"
-            /usr/local/s-ui/sui cert -issue-ip
-            if [[ $? -ne 0 ]]; then
-                echo -e "${red}IP 证书申请失败，请稍后在面板内手动配置${plain}"
-            fi
-            ;;
-        2)
-            echo -e "${yellow}正在生成自签证书...${plain}"
-            /usr/local/s-ui/sui cert -issue-self
-            ;;
-        3)
-            echo -e "${yellow}已跳过 SSL 配置${plain}"
-            ;;
-    esac
-}
-
 prepare_services() {
     if [[ -f "/etc/systemd/system/sing-box.service" ]]; then
         echo -e "${yellow}正在停止 sing-box 服务... ${plain}"
@@ -198,7 +172,6 @@ install_s-ui() {
     rm -rf s-ui
 
     config_after_install
-    ask_ssl_strategy
     prepare_services
 
     systemctl enable s-ui --now

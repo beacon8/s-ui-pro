@@ -647,16 +647,5 @@ export default {
     m: "د",
     s: "ث",
     ms: "م‌ث",
-  },
-  cert: {
-    title: "گواهی SSL",
-    status: { https: "HTTPS فعال است", http: "HTTP (بدون TLS)" },
-    type: { leIp: "Let's Encrypt (IP)", self: "خودامضا", manual: "دستی", none: "تنظیم نشده" },
-    field: { type: "نوع", ip: "IP گواهی", expiry: "انقضا", daysLeft: "روزهای باقی‌مانده" },
-    action: { issueIp: "دریافت گواهی IP", issueSelf: "گواهی خودامضا", renew: "تجدید", remove: "غیرفعال کردن HTTPS" },
-    precheck: { title: "بررسی اولیه", publicIp: "IP عمومی", port80: "پورت 80", free: "آزاد", occupied: "در حال استفاده", notDetected: "شناسایی نشد", warning: "پورت 80 موقتاً توسط acme.sh در حین صدور استفاده خواهد شد" },
-    confirm: { issueIp: "دریافت گواهی Let's Encrypt IP؟", issueSelf: "گواهی خودامضا باعث هشدار مرورگر می‌شود. ادامه می‌دهید؟", renew: "تجدید اجباری گواهی؟", remove: "HTTPS غیرفعال می‌شود. ادامه می‌دهید؟" },
-    hint: { noHttps: "برای امنیت بیشتر HTTPS را فعال کنید", manualFile: "از دکمه‌های بالا استفاده کنید یا مسیر فایل گواهی را اینجا وارد کنید" },
-    notify: { issueSuccess: "گواهی صادر شد. از طریق HTTPS وصل شوید", issueSelfSuccess: "گواهی خودامضا ساخته شد. از طریق HTTPS وارد شوید (هشدار مرورگر را بپذیرید)", renewSuccess: "گواهی تجدید شد", removeSuccess: "HTTPS غیرفعال شد", failed: "عملیات ناموفق بود" },
-  },
+  }
 }

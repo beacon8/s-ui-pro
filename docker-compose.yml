@@ -6,8 +6,7 @@ services:
     network_mode: host
     volumes:
       - "./db:/app/db"
-      - "./cert:/usr/local/s-ui/cert"
-      - "./acme:/root/.acme.sh"
+      - "./cert:/app/cert"
     tty: true
     restart: unless-stopped
     entrypoint: "./entrypoint.sh"

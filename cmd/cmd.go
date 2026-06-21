@@ -46,7 +46,6 @@ func ParseCmd() {
 		fmt.Println("    uri            Show panel URI")
 		fmt.Println("    migrate        migrate form older version")
 		fmt.Println("    setting        set/reset/show settings")
-		fmt.Println("    cert           SSL certificate management")
 		fmt.Println()
 		adminCmd.Usage()
 		fmt.Println()
@@ -90,9 +89,6 @@ func ParseCmd() {
 
 	case "migrate":
 		migration.MigrateDb()
-
-	case "cert":
-		certCmd(os.Args[2:])
 
 	case "setting":
 		err := settingCmd.Parse(os.Args[2:])

@@ -648,15 +648,4 @@ export default {
     s: "s",
     ms: "ms",
   },
-  cert: {
-    title: "Chứng chỉ SSL",
-    status: { https: "HTTPS đã bật", http: "HTTP (chưa có TLS)" },
-    type: { leIp: "Let's Encrypt (IP)", self: "Tự ký", manual: "Thủ công", none: "Chưa cấu hình" },
-    field: { type: "Loại", ip: "IP chứng chỉ", expiry: "Hết hạn", daysLeft: "Ngày còn lại" },
-    action: { issueIp: "Cấp chứng chỉ IP", issueSelf: "Chứng chỉ tự ký", renew: "Gia hạn", remove: "Tắt HTTPS" },
-    precheck: { title: "Kiểm tra trước", publicIp: "IP công khai", port80: "Cổng 80", free: "Trống", occupied: "Đang dùng", notDetected: "Không phát hiện", warning: "Cổng 80 sẽ tạm thời được dùng bởi acme.sh khi cấp chứng chỉ" },
-    confirm: { issueIp: "Cấp chứng chỉ Let's Encrypt IP?", issueSelf: "Chứng chỉ tự ký sẽ bị trình duyệt cảnh báo. Tiếp tục?", renew: "Buộc gia hạn chứng chỉ?", remove: "HTTPS sẽ bị tắt. Tiếp tục?" },
-    hint: { noHttps: "Nên bật HTTPS để tăng bảo mật", manualFile: "Dùng các nút bên trên hoặc nhập thủ công đường dẫn tệp chứng chỉ" },
-    notify: { issueSuccess: "Đã cấp chứng chỉ. Kết nối lại qua HTTPS", issueSelfSuccess: "Chứng chỉ tự ký đã tạo. Truy cập qua HTTPS (chấp nhận cảnh báo)", renewSuccess: "Đã gia hạn chứng chỉ", removeSuccess: "HTTPS đã tắt", failed: "Thao tác thất bại" },
-  },
 }

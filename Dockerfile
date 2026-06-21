@@ -41,7 +41,7 @@ RUN if [ "$TARGETARCH" = "arm" ]; then export GOARM=7; [ "$TARGETVARIANT" = "v6"
 FROM alpine
 ENV TZ=Asia/Shanghai
 WORKDIR /app
-RUN set -ex && apk add --no-cache --upgrade bash tzdata ca-certificates nftables curl socat openssl
+RUN set -ex && apk add --no-cache --upgrade bash tzdata ca-certificates nftables
 COPY --from=backend-builder /app/sui /app/libcronet.so /app/
 COPY entrypoint.sh /app/
 RUN chmod +x /app/entrypoint.sh

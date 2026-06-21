@@ -25,17 +25,13 @@ func runApp() {
 
 	sigCh := make(chan os.Signal, 1)
 	// Trap shutdown signals
-	signal.Notify(sigCh, syscall.SIGHUP, syscall.SIGTERM, syscall.SIGUSR1)
+	signal.Notify(sigCh, syscall.SIGHUP, syscall.SIGTERM)
 	for {
 		sig := <-sigCh
 
 		switch sig {
 		case syscall.SIGHUP:
 			app.RestartApp()
-		case syscall.SIGUSR1:
-			if err := app.ReloadWebCert(); err != nil {
-				log.Println("热加载证书失败：", err)
-			}
 		default:
 			app.Stop()
 			return

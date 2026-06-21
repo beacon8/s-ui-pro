@@ -649,16 +649,8 @@ export default {
     s: "с",
     ms: "мс",
   },
-  cert: {
-    title: "SSL Сертификат",
-    status: { https: "HTTPS включён", http: "HTTP (без TLS)" },
-    type: { leIp: "Let's Encrypt (IP)", self: "Самоподписанный", manual: "Ручная настройка", none: "Не настроен" },
-    field: { type: "Тип", ip: "IP сертификата", expiry: "Срок действия", daysLeft: "Осталось дней" },
-    action: { issueIp: "Получить IP сертификат", issueSelf: "Самоподписанный сертификат", renew: "Обновить", remove: "Отключить HTTPS" },
-    precheck: { title: "Предварительная проверка", publicIp: "Публичный IP", port80: "Порт 80", free: "Свободен", occupied: "Занят", notDetected: "Не определён", warning: "Порт 80 будет временно использован acme.sh во время получения сертификата" },
-    confirm: { issueIp: "Получить Let's Encrypt IP сертификат?", issueSelf: "Самоподписанные сертификаты вызывают предупреждения браузера. Продолжить?", renew: "Принудительно обновить сертификат?", remove: "HTTPS будет отключён. Продолжить?" },
-    hint: { noHttps: "Рекомендуется включить HTTPS для безопасности", manualFile: "Используйте кнопки выше или укажите путь к файлу сертификата вручную" },
-    notify: { issueSuccess: "Сертификат получен. Переподключитесь по HTTPS", issueSelfSuccess: "Самоподписанный сертификат создан. Откройте по HTTPS (примите предупреждение)", renewSuccess: "Сертификат обновлён", removeSuccess: "HTTPS отключён", failed: "Ошибка операции" },
-  },
 }
+ 
+
+
 

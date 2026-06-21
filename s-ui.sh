@@ -482,15 +482,10 @@ install_acme() {
 }
 
 ssl_cert_issue_main() {
-    echo -e "${green}\t1.${plain} Let's Encrypt 域名证书（HTTP-01）"
+    echo -e "${green}\t1.${plain} 获取 SSL"
     echo -e "${green}\t2.${plain} 吊销证书"
-    echo -e "${green}\t3.${plain} 强制续签（域名证书）"
-    echo -e "${green}\t4.${plain} 自签名证书（旧版 openssl）"
-    echo -e "${green}\t5.${plain} Let's Encrypt IP 证书（NEW）"
-    echo -e "${green}\t6.${plain} 自签证书（NEW，纯 Go 实现）"
-    echo -e "${green}\t7.${plain} 显示当前证书状态"
-    echo -e "${green}\t8.${plain} 手动续签 IP 证书"
-    echo -e "${green}\t0.${plain} 返回上一级"
+    echo -e "${green}\t3.${plain} 强制续签"
+    echo -e "${green}\t4.${plain} 自签名证书"
     read -p "请选择一个选项： " choice
     case "$choice" in
         1) ssl_cert_issue ;;
@@ -507,11 +502,6 @@ ssl_cert_issue_main() {
         4)
             generate_self_signed_cert
             ;;
-        5) /usr/local/s-ui/sui cert -issue-ip ;;
-        6) /usr/local/s-ui/sui cert -issue-self ;;
-        7) /usr/local/s-ui/sui cert -status ;;
-        8) /usr/local/s-ui/sui cert -renew ;;
-        0) return ;;
         *) echo "无效选择" ;;
     esac
 }

@@ -648,15 +648,4 @@ export default {
     s: "秒",
     ms: "毫秒",
   },
-  cert: {
-    title: "SSL 证书",
-    status: { https: "已启用 HTTPS", http: "未启用 HTTP" },
-    type: { leIp: "Let's Encrypt (IP)", self: "自签证书", manual: "手动配置", none: "未配置" },
-    field: { type: "类型", ip: "证书 IP", expiry: "到期", daysLeft: "剩余天数" },
-    action: { issueIp: "申请 IP 证书", issueSelf: "生成自签证书", renew: "手动续签", remove: "恢复 HTTP" },
-    precheck: { title: "预检结果", publicIp: "公网 IP", port80: "80 端口", free: "可用", occupied: "被占用", notDetected: "未检测到", warning: "申请期间面板会临时中断 HTTP 服务以让 acme.sh 使用 80 端口" },
-    confirm: { issueIp: "确认申请 IP 证书？", issueSelf: "自签证书会被浏览器警告，确认继续？", renew: "确认强制续签？", remove: "恢复 HTTP 后将无法用 HTTPS 访问，确认继续？" },
-    hint: { noHttps: "建议启用 HTTPS 提升安全性", manualFile: "使用上方一键申请，或在此手动指定证书文件路径" },
-    notify: { issueSuccess: "证书申请成功，请用 HTTPS 重新访问", issueSelfSuccess: "自签证书生成成功，请用 HTTPS 访问（浏览器警告页选继续）", renewSuccess: "续签成功", removeSuccess: "已恢复 HTTP", failed: "操作失败" },
-  },
 }

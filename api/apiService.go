@@ -27,7 +27,6 @@ type ApiService struct {
 	service.PanelService
 	service.StatsService
 	service.ServerService
-	certService *service.CertService
 }
 
 func (a *ApiService) LoadData(c *gin.Context) {
@@ -439,83 +438,4 @@ func (a *ApiService) ImportRules(c *gin.Context, loginUser string) {
 		return
 	}
 	jsonObj(c, result, nil)
-}
-
-// --- 证书管理 handlers ---
-
-func (a *ApiService) CertStatus(c *gin.Context) {
-	if a.certService == nil {
-		jsonMsg(c, "cert", nil)
-		return
-	}
-	st, err := a.certService.GetCertStatus()
-	if err != nil {
-		jsonMsg(c, "cert", err)
-		return
-	}
-	c.JSON(200, gin.H{"success": true, "obj": st})
-}
-
-func (a *ApiService) CertPrecheck(c *gin.Context) {
-	if a.certService == nil {
-		jsonMsg(c, "cert", nil)
-		return
-	}
-	result, err := a.certService.Precheck()
-	if err != nil {
-		jsonMsg(c, "cert", err)
-		return
-	}
-	c.JSON(200, gin.H{"success": true, "obj": result})
-}
-
-func (a *ApiService) CertIssueIP(c *gin.Context) {
-	if a.certService == nil {
-		jsonMsg(c, "cert", nil)
-		return
-	}
-	force := c.PostForm("force") == "true"
-	st, err := a.certService.IssueLeIPCert(force)
-	if err != nil {
-		jsonMsg(c, "cert", err)
-		return
-	}
-	c.JSON(200, gin.H{"success": true, "obj": st})
-}
-
-func (a *ApiService) CertIssueSelf(c *gin.Context) {
-	if a.certService == nil {
-		jsonMsg(c, "cert", nil)
-		return
-	}
-	st, err := a.certService.IssueSelfSignedCert()
-	if err != nil {
-		jsonMsg(c, "cert", err)
-		return
-	}
-	c.JSON(200, gin.H{"success": true, "obj": st})
-}
-
-func (a *ApiService) CertRenew(c *gin.Context) {
-	if a.certService == nil {
-		jsonMsg(c, "cert", nil)
-		return
-	}
-	if err := a.certService.RenewIpCert(); err != nil {
-		jsonMsg(c, "cert", err)
-		return
-	}
-	c.JSON(200, gin.H{"success": true})
-}
-
-func (a *ApiService) CertRemove(c *gin.Context) {
-	if a.certService == nil {
-		jsonMsg(c, "cert", nil)
-		return
-	}
-	if err := a.certService.RemoveCert(); err != nil {
-		jsonMsg(c, "cert", err)
-		return
-	}
-	c.JSON(200, gin.H{"success": true})
 }

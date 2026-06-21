@@ -7,7 +7,7 @@ Wants=network.target
 Type=simple
 WorkingDirectory=/usr/local/s-ui/
 ExecStart=/usr/local/s-ui/sui
-Restart=always
+Restart=on-failure
 RestartSec=10s
 
 [Install]

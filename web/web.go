@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"embed"
-	"fmt"
 	"html/template"
 	"io"
 	"io/fs"
@@ -12,8 +11,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/admin8800/s-ui/api"
@@ -38,11 +35,6 @@ type Server struct {
 	ctx            context.Context
 	cancel         context.CancelFunc
 	settingService service.SettingService
-	certService    *service.CertService
-
-	// 热加载证书指针
-	cert   atomic.Pointer[tls.Certificate]
-	certMu sync.Mutex // 串行化 reload 操作
 }
 
 func NewServer() *Server {
@@ -51,10 +43,6 @@ func NewServer() *Server {
 		ctx:    ctx,
 		cancel: cancel,
 	}
-}
-
-func (s *Server) SetCertService(certService *service.CertService) {
-	s.certService = certService
 }
 
 func (s *Server) initRouter() (*gin.Engine, error) {
@@ -120,7 +108,7 @@ func (s *Server) initRouter() (*gin.Engine, error) {
 	apiv2 := api.NewAPIv2Handler(group_apiv2)
 
 	group_api := engine.Group(base_url + "api")
-	api.NewAPIHandler(group_api, apiv2, s.certService)
+	api.NewAPIHandler(group_api, apiv2)
 
 	// Serve index.html as the entry point
 	// Handle all other routes by serving index.html
@@ -181,35 +169,24 @@ func (s *Server) Start() (err error) {
 	if err != nil {
 		return err
 	}
-
-	// 先尝试加载证书（即使失败也继续，启动后允许用户后续配置）
-	if certFile != "" && keyFile != "" {
-		if cert, err := tls.LoadX509KeyPair(certFile, keyFile); err == nil {
-			s.cert.Store(&cert)
-		} else {
-			logger.Warning("证书加载失败，启动为 HTTP：", err)
+	if certFile != "" || keyFile != "" {
+		cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+		if err != nil {
+			listener.Close()
+			return err
 		}
-	}
-
-	if s.cert.Load() != nil {
-		tlsConfig := &tls.Config{
-			// 关键：用 GetCertificate 回调，每次握手取最新指针
-			GetCertificate: func(*tls.ClientHelloInfo) (*tls.Certificate, error) {
-				c := s.cert.Load()
-				if c == nil {
-					return nil, fmt.Errorf("当前无可用证书")
-				}
-				return c, nil
-			},
-			MinVersion: tls.VersionTLS12,
+		c := &tls.Config{
+			Certificates: []tls.Certificate{cert},
 		}
 		listener = network.NewAutoHttpsListener(listener)
-		listener = tls.NewListener(listener, tlsConfig)
+		listener = tls.NewListener(listener, c)
+	}
+
+	if certFile != "" || keyFile != "" {
 		logger.Info("web server run https on", listener.Addr())
 	} else {
 		logger.Info("web server run http on", listener.Addr())
 	}
-
 	s.listener = listener
 
 	s.httpServer = &http.Server{
@@ -249,28 +226,4 @@ func (s *Server) Stop() error {
 
 func (s *Server) GetCtx() context.Context {
 	return s.ctx
-}
-
-// ReloadCert 从 settings 中读取 webCertFile/webKeyFile，
-// 重新加载证书并原子替换。可在运行期间被定时任务或 HTTP API 调用。
-func (s *Server) ReloadCert() error {
-	s.certMu.Lock()
-	defer s.certMu.Unlock()
-
-	certFile, _ := s.settingService.GetCertFile()
-	keyFile, _ := s.settingService.GetKeyFile()
-
-	if certFile == "" || keyFile == "" {
-		s.cert.Store(nil)
-		logger.Info("证书已清除，回退到 HTTP")
-		return nil
-	}
-
-	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
-	if err != nil {
-		return err
-	}
-	s.cert.Store(&cert)
-	logger.Info("证书已热加载：", certFile)
-	return nil
 }

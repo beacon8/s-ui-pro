@@ -648,15 +648,4 @@ export default {
     s: "秒",
     ms: "毫秒",
   },
-  cert: {
-    title: "SSL 憑證",
-    status: { https: "已啟用 HTTPS", http: "未啟用 HTTP" },
-    type: { leIp: "Let's Encrypt (IP)", self: "自簽憑證", manual: "手動設定", none: "未設定" },
-    field: { type: "類型", ip: "憑證 IP", expiry: "到期", daysLeft: "剩餘天數" },
-    action: { issueIp: "申請 IP 憑證", issueSelf: "產生自簽憑證", renew: "手動續期", remove: "恢復 HTTP" },
-    precheck: { title: "預檢結果", publicIp: "公網 IP", port80: "80 埠", free: "可用", occupied: "被佔用", notDetected: "未偵測到", warning: "申請期間面板將暫時中斷 HTTP 服務以讓 acme.sh 使用 80 埠" },
-    confirm: { issueIp: "確認申請 IP 憑證？", issueSelf: "自簽憑證會被瀏覽器警告，確認繼續？", renew: "確認強制續期？", remove: "恢復 HTTP 後將無法使用 HTTPS 訪問，確認繼續？" },
-    hint: { noHttps: "建議啟用 HTTPS 提升安全性", manualFile: "使用上方一鍵申請，或在此手動指定憑證檔案路徑" },
-    notify: { issueSuccess: "憑證申請成功，請使用 HTTPS 重新訪問", issueSelfSuccess: "自簽憑證產生成功，請使用 HTTPS 訪問（瀏覽器警告頁選繼續）", renewSuccess: "續期成功", removeSuccess: "已恢復 HTTP", failed: "操作失敗" },
-  },
 }
