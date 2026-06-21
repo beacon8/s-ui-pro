@@ -38,7 +38,6 @@ document.title = "S-UI " + document.location.hostname
 .v-card {
   border-color: #d9d9d9 !important;
   box-shadow: 0 1px 2px -2px rgba(0,0,0,0.16), 0 3px 6px 0 rgba(0,0,0,0.12), 0 5px 12px 4px rgba(0,0,0,0.08) !important;
-  overflow: hidden;
 }
 .v-card--variant-elevated {
   box-shadow: 0 1px 2px -2px rgba(0,0,0,0.16), 0 3px 6px 0 rgba(0,0,0,0.12), 0 5px 12px 4px rgba(0,0,0,0.08) !important;
@@ -60,7 +59,7 @@ document.title = "S-UI " + document.location.hostname
 
 /* 弹窗滚动区：补顶部 padding，防止浮动 label 上半部分被裁 */
 .v-card-text[style*="overflow-y"] {
-  padding-top: 14px !important;
+  padding-top: 16px !important;
 }
 
 /* 按钮：Antd 默认尺寸，更紧凑 */

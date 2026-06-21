@@ -14,7 +14,7 @@
             <v-tab value="t1">{{ $t('client.basics') }}</v-tab>
             <v-tab value="t2">{{ $t('client.external') }}</v-tab>
           </v-tabs>
-          <v-window v-model="tab">
+          <v-window v-model="tab" style="margin-top: 12px;">
             <v-window-item value="t1">
               <v-row>
                 <v-col cols="12" sm="6" md="4">

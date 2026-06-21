@@ -21,7 +21,7 @@
             <v-tab value="t2">{{ $t('client.config') }}</v-tab>
             <v-tab value="t3">{{ $t('client.links') }}</v-tab>
           </v-tabs>
-          <v-window v-model="tab">
+          <v-window v-model="tab" style="margin-top: 12px;">
             <v-window-item value="t1">
               <v-row>
                 <v-col cols="12" sm="6" md="4">
@@ -173,7 +173,7 @@
             <v-window-item value="t3">
               <v-row v-for="(lnk, index) in links">
                 <v-col cols="auto">{{ index + 1 }}</v-col>
-                <v-col style="direction: ltr; overflow-y: hidden;">{{ lnk.uri }}</v-col>
+                <v-col style="direction: ltr; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" :title="lnk.uri">{{ lnk.uri }}</v-col>
               </v-row>
               <v-row>
                 <v-col>
