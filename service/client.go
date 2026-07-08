@@ -639,7 +639,7 @@ type ClientFilter struct {
 	Group    string // 分组精确匹配
 }
 
-const batchSearchLimit = 2000
+const batchSearchLimit = 10000
 
 // SearchClients 用于聚合订阅 API。仅返回 enable=true 的 client；超过 batchSearchLimit 返回错误。
 func (s *ClientService) SearchClients(f ClientFilter) ([]*model.Client, error) {
@@ -660,7 +660,7 @@ func (s *ClientService) SearchClients(f ClientFilter) ([]*model.Client, error) {
 		return nil, err
 	}
 	if len(clients) > batchSearchLimit {
-		return nil, common.NewErrorf("too many matches (>%d), narrow your filter", batchSearchLimit)
+		return nil, common.NewErrorf("too many matches (>%d), use 'group' or 'name' to narrow your filter", batchSearchLimit)
 	}
 	return clients, nil
 }
