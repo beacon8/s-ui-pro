@@ -76,6 +76,7 @@
         hide-no-data
         fixed-header
         show-select
+        return-object
         item-value="id"
         :mobile="smAndDown"
         mobile-breakpoint="sm"
@@ -196,11 +197,7 @@ const filterMulti = (_value: any, query: string, item: any): boolean => {
 }
 
 const selected = ref<any[]>([])
-const selectedItems = computed(() =>
-  selected.value
-    .map((id: any) => outbounds.value.find((o: any) => o.id === id))
-    .filter(Boolean)
-)
+const selectedItems = computed(() => selected.value)
 
 const editBulkModal = ref({ visible: false })
 const showEditBulk = () => { editBulkModal.value.visible = true }
