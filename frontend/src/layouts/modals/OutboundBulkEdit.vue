@@ -30,7 +30,7 @@
       </v-card-text>
 
       <!-- 预览表格 -->
-      <v-card-text v-else style="padding: 0 16px;">
+      <v-card-text v-else style="padding: 0 16px; max-height: 55vh; overflow-y: auto;">
         <v-data-table
           :headers="previewHeaders"
           :items="previewItems"
@@ -38,7 +38,6 @@
           hide-default-footer
           density="compact"
           class="elevation-1 rounded"
-          max-height="60vh"
           fixed-header
         >
           <template v-slot:item.server="{ item }">
