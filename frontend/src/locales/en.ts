@@ -241,6 +241,10 @@ export default {
     editOutbounds: "Batch Edit Outbounds",
     editHint: "Check fields to replace; unchecked fields keep original values",
     editSuccess: "Updated {count} outbounds",
+    batchInput: "Batch input (one per line: ip:port:username:password)",
+    parsedCount: "Parsed {count} lines",
+    parseError: "{bad} line(s) have invalid format (expected ip:port:username:password)",
+    countMismatch: "Line count ({lines}) does not match selected outbounds ({items})",
   },
   types: {
     un: "Username",

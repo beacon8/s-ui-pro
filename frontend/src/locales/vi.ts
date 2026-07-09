@@ -241,6 +241,10 @@ export default {
     editOutbounds: "Sửa hàng loạt outbound",
     editHint: "Chỉ thay thế trường đã chọn",
     editSuccess: "Đã cập nhật {count} outbound",
+    batchInput: "Nhập hàng loạt (mỗi dòng: ip:port:username:password)",
+    parsedCount: "Đã phân tích {count} dòng",
+    parseError: "{bad} dòng định dạng không hợp lệ (ip:port:username:password)",
+    countMismatch: "Số dòng ({lines}) không khớp với outbound đã chọn ({items})",
   },
   types: {
     un: "Tên người dùng",

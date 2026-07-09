@@ -241,6 +241,10 @@ export default {
     editOutbounds: "ویرایش گروهی خروجی",
     editHint: "فقط فیلدهای انتخاب‌شده جایگزین می‌شوند",
     editSuccess: "{count} خروجی به‌روزرسانی شد",
+    batchInput: "ورودی گروهی (هر خط: ip:port:username:password)",
+    parsedCount: "{count} خط解析 شد",
+    parseError: "{bad} خط فرمت نامعتبر (باید ip:port:username:password باشد)",
+    countMismatch: "تعداد خطوط ({lines}) با خروجی‌های انتخاب‌شده ({items}) مطابقت ندارد",
   },
   types: {
     un: "نام کاربری",

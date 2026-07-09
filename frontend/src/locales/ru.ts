@@ -242,6 +242,10 @@ export default {
     editOutbounds: "Массовое редактирование",
     editHint: "Заменяются только отмеченные поля",
     editSuccess: "Обновлено {count} исходящих",
+    batchInput: "Массовый ввод (по строке: ip:port:username:password)",
+    parsedCount: "Разобрано {count} строк",
+    parseError: "{bad} строк с неверным форматом (ожидалось ip:port:username:password)",
+    countMismatch: "Количество строк ({lines}) не совпадает с выбранными ({items})",
   },
   types: {
     un: "Имя пользователя",

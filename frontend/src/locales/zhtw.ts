@@ -241,6 +241,10 @@ export default {
     editOutbounds: "批次編輯出站",
     editHint: "勾選的欄位才會被替換，未勾選的保持原值",
     editSuccess: "已更新 {count} 個出站",
+    batchInput: "批次輸入（每行一個：ip:port:username:password）",
+    parsedCount: "已解析 {count} 行",
+    parseError: "{bad} 行格式無效（應為 ip:port:username:password）",
+    countMismatch: "行數（{lines}）與選中出站數（{items}）不匹配",
   },
   types: {
     un: "用戶名",

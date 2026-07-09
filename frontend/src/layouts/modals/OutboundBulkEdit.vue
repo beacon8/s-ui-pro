@@ -6,27 +6,27 @@
       </v-card-title>
       <v-divider></v-divider>
 
-      <!-- 编辑表单 -->
+      <!-- 多行输入模式 -->
       <v-card-text v-if="!showPreview" style="padding: 0 16px;">
-        <div class="text-medium-emphasis pa-2">{{ $t('bulk.editHint') }}</div>
-        <v-row>
-          <v-col cols="12" sm="6" md="4">
-            <v-checkbox v-model="fields.server" :label="$t('in.addr')" hide-details density="compact" />
-            <v-text-field v-model="values.server" :disabled="!fields.server" hide-details density="compact" variant="outlined" class="mt-2" />
-          </v-col>
-          <v-col cols="12" sm="6" md="4">
-            <v-checkbox v-model="fields.server_port" :label="$t('in.port')" hide-details density="compact" />
-            <v-text-field v-model.number="values.server_port" type="number" :disabled="!fields.server_port" hide-details density="compact" variant="outlined" class="mt-2" />
-          </v-col>
-          <v-col cols="12" sm="6" md="4">
-            <v-checkbox v-model="fields.username" :label="$t('user')" hide-details density="compact" />
-            <v-text-field v-model="values.username" :disabled="!fields.username" hide-details density="compact" variant="outlined" class="mt-2" />
-          </v-col>
-          <v-col cols="12" sm="6" md="4">
-            <v-checkbox v-model="fields.password" :label="$t('password')" hide-details density="compact" />
-            <v-text-field v-model="values.password" :disabled="!fields.password" hide-details density="compact" variant="outlined" class="mt-2" />
-          </v-col>
-        </v-row>
+        <div class="text-medium-emphasis pa-2">
+          {{ $t('bulk.editHint') }}
+        </div>
+        <v-textarea
+          v-model="batchText"
+          :label="$t('bulk.batchInput')"
+          :placeholder="placeholder"
+          rows="10"
+          variant="outlined"
+          hide-details
+          dir="ltr"
+          class="pa-2"
+        />
+        <div class="text-medium-emphasis px-2 pb-2" v-if="parseError">
+          <v-alert :text="parseError" type="error" variant="outlined" density="compact" />
+        </div>
+        <div class="text-medium-emphasis px-2 pb-2" v-else>
+          <span v-if="parsedLines.length > 0">{{ $t('bulk.parsedCount', { count: parsedLines.length }) }} / {{ items.length }}</span>
+        </div>
       </v-card-text>
 
       <!-- 预览表格 -->
@@ -38,15 +38,28 @@
           hide-default-footer
           density="compact"
           class="elevation-1 rounded"
+          max-height="60vh"
+          fixed-header
         >
-          <template v-slot:item.change="{ item }">
-            <span v-for="(c, i) in item.changes" :key="i" class="d-block">
-              <span class="text-medium-emphasis">{{ c.label }}:</span>
-              <span dir="ltr" class="mx-1">{{ c.old }}</span>
-              <v-icon size="small" icon="mdi-arrow-right" />
-              <span dir="ltr" class="ml-1 font-weight-bold" :class="c.new !== c.old ? 'text-primary' : ''">{{ c.new }}</span>
-            </span>
-            <span v-if="item.changes.length === 0" class="text-medium-emphasis">{{ $t('noChange') }}</span>
+          <template v-slot:item.server="{ item }">
+            <span dir="ltr">{{ item.oldServer }}</span>
+            <v-icon size="small" icon="mdi-arrow-right" class="mx-1" />
+            <span dir="ltr" class="text-primary font-weight-bold">{{ item.newServer }}</span>
+          </template>
+          <template v-slot:item.server_port="{ item }">
+            <span dir="ltr">{{ item.oldPort }}</span>
+            <v-icon size="small" icon="mdi-arrow-right" class="mx-1" />
+            <span dir="ltr" class="text-primary font-weight-bold">{{ item.newPort }}</span>
+          </template>
+          <template v-slot:item.username="{ item }">
+            <span dir="ltr">{{ item.oldUser || '-' }}</span>
+            <v-icon size="small" icon="mdi-arrow-right" class="mx-1" />
+            <span dir="ltr" class="text-primary font-weight-bold">{{ item.newUser || '-' }}</span>
+          </template>
+          <template v-slot:item.password="{ item }">
+            <span dir="ltr">{{ maskPwd(item.oldPwd) }}</span>
+            <v-icon size="small" icon="mdi-arrow-right" class="mx-1" />
+            <span dir="ltr" class="text-primary font-weight-bold">{{ maskPwd(item.newPwd) }}</span>
           </template>
         </v-data-table>
       </v-card-text>
@@ -55,7 +68,7 @@
         <v-spacer></v-spacer>
         <v-btn color="primary" variant="outlined" @click="$emit('close')">{{ $t('actions.close') }}</v-btn>
         <template v-if="!showPreview">
-          <v-btn color="primary" variant="tonal" :disabled="!hasFieldSelected" @click="buildPreview">{{ $t('preview') }}</v-btn>
+          <v-btn color="primary" variant="tonal" :disabled="!canPreview" @click="buildPreview">{{ $t('preview') }}</v-btn>
         </template>
         <template v-else>
           <v-btn color="secondary" variant="outlined" @click="showPreview = false">{{ $t('back') }}</v-btn>
@@ -83,65 +96,84 @@ const emit = defineEmits<{
 
 const loading = ref(false)
 const showPreview = ref(false)
+const batchText = ref('')
 
-const fields = ref({
-  server: false,
-  server_port: false,
-  username: false,
-  password: false,
+const placeholder = '1.2.3.4:1080:user1:pass1\n5.6.7.8:1080:user2:pass2:with:colons'
+
+// 解析多行文本，每行 ip:port:username:password
+const parsedLines = computed(() => {
+  const lines = batchText.value.split('\n').map(l => l.trim()).filter(l => l.length > 0)
+  const result: { server: string; server_port: number; username: string; password: string }[] = []
+  for (const line of lines) {
+    const parts = line.split(':')
+    if (parts.length < 4) continue
+    const server = parts[0]
+    const port = parseInt(parts[1], 10)
+    const username = parts[2]
+    const password = parts.slice(3).join(':')
+    if (!server || isNaN(port)) continue
+    result.push({ server, server_port: port, username, password })
+  }
+  return result
 })
 
-const values = ref({
-  server: '',
-  server_port: 0,
-  username: '',
-  password: '',
+const parseError = computed(() => {
+  const lines = batchText.value.split('\n').map(l => l.trim()).filter(l => l.length > 0)
+  if (lines.length === 0) return ''
+  if (lines.length !== parsedLines.value.length) {
+    return i18n.global.t('bulk.parseError', { bad: lines.length - parsedLines.value.length })
+  }
+  if (parsedLines.value.length !== props.items.length) {
+    return i18n.global.t('bulk.countMismatch', { lines: parsedLines.value.length, items: props.items.length })
+  }
+  return ''
 })
 
-const hasFieldSelected = computed(() => Object.values(fields.value).some(v => v))
-
-const fieldLabels: Record<string, string> = {
-  server: i18n.global.t('in.addr'),
-  server_port: i18n.global.t('in.port'),
-  username: i18n.global.t('user'),
-  password: i18n.global.t('password'),
-}
+const canPreview = computed(() => {
+  if (parsedLines.value.length === 0) return false
+  if (parseError.value) return false
+  return true
+})
 
 const previewHeaders = computed(() => [
   { title: i18n.global.t('objects.tag'), key: 'tag' },
-  { title: i18n.global.t('type'), key: 'type' },
-  { title: i18n.global.t('changes'), key: 'change', sortable: false },
+  { title: i18n.global.t('in.addr'), key: 'server' },
+  { title: i18n.global.t('in.port'), key: 'server_port' },
+  { title: i18n.global.t('user'), key: 'username' },
+  { title: i18n.global.t('password'), key: 'password' },
 ])
 
 const previewItems = ref<any[]>([])
 
+function maskPwd(pwd: string): string {
+  if (!pwd) return '-'
+  if (pwd.length <= 4) return '****'
+  return pwd.slice(0, 2) + '****' + pwd.slice(-2)
+}
+
 function buildPreview() {
-  previewItems.value = props.items.map((item: any) => {
-    const changes: { label: string; old: any; new: any }[] = []
-    for (const key of Object.keys(fields.value)) {
-      if ((fields.value as any)[key]) {
-        changes.push({
-          label: fieldLabels[key],
-          old: item[key] ?? '-',
-          new: (values.value as any)[key],
-        })
-      }
+  previewItems.value = props.items.map((item: any, i: number) => {
+    const p = parsedLines.value[i]
+    return {
+      tag: item.tag,
+      oldServer: item.server ?? '-',
+      newServer: p.server,
+      oldPort: item.server_port ?? '-',
+      newPort: p.server_port,
+      oldUser: item.username ?? '',
+      newUser: p.username,
+      oldPwd: item.password ?? '',
+      newPwd: p.password,
     }
-    return { tag: item.tag, type: item.type, changes, _raw: item }
   })
   showPreview.value = true
 }
 
 async function execute() {
   loading.value = true
-  const payload = props.items.map((item: any) => {
-    const updated = { ...item }
-    for (const key of Object.keys(fields.value)) {
-      if ((fields.value as any)[key]) {
-        updated[key] = (values.value as any)[key]
-      }
-    }
-    return updated
+  const payload = props.items.map((item: any, i: number) => {
+    const p = parsedLines.value[i]
+    return { ...item, server: p.server, server_port: p.server_port, username: p.username, password: p.password }
   })
   const success = await Data().save('outbounds', 'editbulk', payload)
   loading.value = false
@@ -154,8 +186,7 @@ async function execute() {
 watch(() => props.visible, (v: boolean) => {
   if (v) {
     showPreview.value = false
-    fields.value = { server: false, server_port: false, username: false, password: false }
-    values.value = { server: '', server_port: 0, username: '', password: '' }
+    batchText.value = ''
   }
 })
 </script>
