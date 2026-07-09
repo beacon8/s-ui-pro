@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"os"
 	"strconv"
 	"sync"
 	"time"
@@ -222,12 +223,25 @@ func (s *ConfigService) Save(obj string, act string, data json.RawMessage, initU
 	defer func() {
 		if err == nil {
 			tx.Commit()
+			// 事务提交后执行出站热替换（editbulk 收集的任务）
+			if len(pendingHotSwaps) > 0 {
+				for _, hs := range pendingHotSwaps {
+					if e := corePtr.RemoveOutbound(hs.oldTag); e != nil && e != os.ErrInvalid {
+						logger.Error("hotswap remove outbound:", hs.oldTag, e.Error())
+					}
+					if e := corePtr.AddOutbound(hs.config); e != nil {
+						logger.Error("hotswap add outbound:", e.Error())
+					}
+				}
+				pendingHotSwaps = nil
+			}
 			// Try to start core if it is not running
 			if !corePtr.IsRunning() {
 				s.StartCore()
 			}
 		} else {
 			tx.Rollback()
+			pendingHotSwaps = nil
 		}
 	}()
 

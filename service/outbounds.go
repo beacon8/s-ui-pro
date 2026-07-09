@@ -19,6 +19,9 @@ type hotSwap struct {
 	config json.RawMessage
 }
 
+// pendingHotSwaps 暂存待执行的热替换任务（事务提交后由 ConfigService.Save 执行）
+var pendingHotSwaps []hotSwap
+
 func (o *OutboundService) GetAll() (*[]map[string]interface{}, error) {
 	db := database.GetDB()
 	outbounds := []*model.Outbound{}
@@ -134,10 +137,9 @@ func (s *OutboundService) Save(tx *gorm.DB, act string, data json.RawMessage) er
 		if err != nil {
 			return err
 		}
-		// 不使用传入的 tx 事务，改用独立连接逐条保存，避免长时间持锁导致 database is locked
-		// （RemoveOutbound/AddOutbound 操作内核期间，StatsJob 等定时任务无法写入）
-		db := database.GetDB()
-		var hotSwaps []hotSwap
+		// 事务内只做 DB 写入（tx.Save），不碰内核，避免长时间持锁
+		// 热替换任务存到 pendingHotSwaps，由 ConfigService.Save 在事务提交后执行
+		pendingHotSwaps = nil
 		for _, item := range outboundList {
 			var outbound model.Outbound
 			err = outbound.UnmarshalJSON(item)
@@ -146,7 +148,7 @@ func (s *OutboundService) Save(tx *gorm.DB, act string, data json.RawMessage) er
 			}
 			if corePtr.IsRunning() {
 				var oldTag string
-				err = db.Model(model.Outbound{}).Select("tag").Where("id = ?", outbound.Id).Find(&oldTag).Error
+				err = tx.Model(model.Outbound{}).Select("tag").Where("id = ?", outbound.Id).Find(&oldTag).Error
 				if err != nil {
 					return err
 				}
@@ -154,20 +156,11 @@ func (s *OutboundService) Save(tx *gorm.DB, act string, data json.RawMessage) er
 				if err != nil {
 					return err
 				}
-				hotSwaps = append(hotSwaps, hotSwap{oldTag: oldTag, config: configData})
+				pendingHotSwaps = append(pendingHotSwaps, hotSwap{oldTag: oldTag, config: configData})
 			}
-			err = db.Save(&outbound).Error
+			err = tx.Save(&outbound).Error
 			if err != nil {
 				return err
-			}
-		}
-		// DB 写入完成后再统一热替换
-		for _, hs := range hotSwaps {
-			if e := corePtr.RemoveOutbound(hs.oldTag); e != nil && e != os.ErrInvalid {
-				return e
-			}
-			if e := corePtr.AddOutbound(hs.config); e != nil {
-				return e
 			}
 		}
 	case "del":
