@@ -25,6 +25,13 @@ export default {
   commaSeparated: "(разделено запятыми)",
   count: "Количество",
   search: "Поиск",
+
+  user: "Пользователь",
+  password: "Пароль",
+  preview: "Предпросмотр",
+  back: "Назад",
+  selected: "Выбрано",
+  noChange: "Без изменений",
   template: "Шаблон",
   editor: "Редактор",
   error: {
@@ -231,6 +238,10 @@ export default {
     removeInbounds: "Удалить входящие",
     addDays: "Добавить дни",
     addVolume: "Добавить объём",
+
+    editOutbounds: "Массовое редактирование",
+    editHint: "Заменяются только отмеченные поля",
+    editSuccess: "Обновлено {count} исходящих",
   },
   types: {
     un: "Имя пользователя",

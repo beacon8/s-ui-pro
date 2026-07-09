@@ -25,6 +25,13 @@ export default {
   commaSeparated: "(جداشده با کاما)",
   count: "تعداد",
   search: "جستجو",
+
+  user: "کاربر",
+  password: "رمز",
+  preview: "پیش‌نمایش",
+  back: "بازگشت",
+  selected: "انتخاب‌شده",
+  noChange: "بدون تغییر",
   template: "الگو",
   editor: "ویرایشگر",
   error: {
@@ -230,6 +237,10 @@ export default {
     removeInbounds: "حذف اینباندها",
     addDays: "افزودن روز",
     addVolume: "افزودن حجم",
+
+    editOutbounds: "ویرایش گروهی خروجی",
+    editHint: "فقط فیلدهای انتخاب‌شده جایگزین می‌شوند",
+    editSuccess: "{count} خروجی به‌روزرسانی شد",
   },
   types: {
     un: "نام کاربری",

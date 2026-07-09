@@ -13,6 +13,12 @@
     :outboundTags="outboundTags"
     @close="closeBulkModal"
   />
+  <OutboundBulkEdit
+    v-model="editBulkModal.visible"
+    :visible="editBulkModal.visible"
+    :items="selectedItems"
+    @close="closeEditBulk"
+  />
   <Stats
     v-model="stats.visible"
     :visible="stats.visible"
@@ -39,6 +45,11 @@
         {{ $t('actions.testAll') || 'Test all' }}
       </v-btn>
     </v-col>
+    <v-col cols="auto" v-if="selected.length > 0">
+      <v-btn color="info" variant="tonal" append-icon="mdi-file-edit-outline" @click="showEditBulk">
+        {{ $t('bulk.editOutbounds') }}（{{ selected.length }}）
+      </v-btn>
+    </v-col>
     <v-col cols="12" sm="4" md="3">
       <v-text-field
         v-model="searchTag"
@@ -54,15 +65,17 @@
   <v-row>
     <v-col cols="12">
       <v-data-table
+        v-model="selected"
         :headers="headers"
         :items="<any[]>outbounds"
         :search="searchTag"
-        :custom-filter="filterByTag"
+        :custom-filter="filterMulti"
         :items-per-page="itemPerPage"
         @update:items-per-page="setItemPerPage($event)"
         :hide-default-footer="outbounds.length<=10"
         hide-no-data
         fixed-header
+        show-select
         item-value="tag"
         :mobile="smAndDown"
         mobile-breakpoint="sm"
@@ -125,6 +138,7 @@ import Data from '@/store/modules/data'
 import HttpUtils from '@/plugins/httputil'
 import OutboundVue from '@/layouts/modals/Outbound.vue'
 import OutboundBulk from '@/layouts/modals/OutboundBulk.vue'
+import OutboundBulkEdit from '@/layouts/modals/OutboundBulkEdit.vue'
 import Stats from '@/layouts/modals/Stats.vue'
 import { Outbound } from '@/types/outbounds'
 import { computed, ref } from 'vue'
@@ -172,11 +186,23 @@ const outbounds = computed((): Outbound[] => {
 
 const searchTag = ref('')
 
-// 仅按 tag 模糊过滤
-const filterByTag = (_value: any, query: string, item: any): boolean => {
+// 多字段模糊搜索：匹配 id/tag/server/username
+const filterMulti = (_value: any, query: string, item: any): boolean => {
   if (!query) return true
-  const tag = (item?.raw?.tag ?? '').toLowerCase()
-  return tag.includes(query.toLowerCase())
+  const q = query.toLowerCase()
+  const raw = item?.raw ?? item
+  const fields = [String(raw.id ?? ''), raw.tag ?? '', raw.server ?? '', raw.username ?? '']
+  return fields.some((f) => f.toLowerCase().includes(q))
+}
+
+const selected = ref<any[]>([])
+const selectedItems = computed(() => selected.value.map((s: any) => s.raw ?? s))
+
+const editBulkModal = ref({ visible: false })
+const showEditBulk = () => { editBulkModal.value.visible = true }
+const closeEditBulk = () => {
+  editBulkModal.value.visible = false
+  selected.value = []
 }
 
 const headers = [

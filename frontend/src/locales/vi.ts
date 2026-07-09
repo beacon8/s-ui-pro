@@ -25,6 +25,13 @@ export default {
   commaSeparated: "(được phân tách bằng dấu phẩy)",
   count: "Đếm",
   search: "Tìm kiếm",
+
+  user: "Người dùng",
+  password: "Mật khẩu",
+  preview: "Xem trước",
+  back: "Quay lại",
+  selected: "Đã chọn",
+  noChange: "Không đổi",
   template: "Mẫu",
   editor: "Bản sử dụng",
   error: {
@@ -230,6 +237,10 @@ export default {
     removeInbounds: "Xóa inbound",
     addDays: "Thêm ngày",
     addVolume: "Thêm dung lượng",
+
+    editOutbounds: "Sửa hàng loạt outbound",
+    editHint: "Chỉ thay thế trường đã chọn",
+    editSuccess: "Đã cập nhật {count} outbound",
   },
   types: {
     un: "Tên người dùng",

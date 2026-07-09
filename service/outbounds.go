@@ -122,6 +122,42 @@ func (s *OutboundService) Save(tx *gorm.DB, act string, data json.RawMessage) er
 		if err != nil {
 			return err
 		}
+	case "editbulk":
+		var outboundList []json.RawMessage
+		err = json.Unmarshal(data, &outboundList)
+		if err != nil {
+			return err
+		}
+		for _, item := range outboundList {
+			var outbound model.Outbound
+			err = outbound.UnmarshalJSON(item)
+			if err != nil {
+				return err
+			}
+			if corePtr.IsRunning() {
+				configData, err := outbound.MarshalJSON()
+				if err != nil {
+					return err
+				}
+				var oldTag string
+				err = tx.Model(model.Outbound{}).Select("tag").Where("id = ?", outbound.Id).Find(&oldTag).Error
+				if err != nil {
+					return err
+				}
+				err = corePtr.RemoveOutbound(oldTag)
+				if err != nil && err != os.ErrInvalid {
+					return err
+				}
+				err = corePtr.AddOutbound(configData)
+				if err != nil {
+					return err
+				}
+			}
+			err = tx.Save(&outbound).Error
+			if err != nil {
+				return err
+			}
+		}
 	case "del":
 		var tag string
 		err = json.Unmarshal(data, &tag)

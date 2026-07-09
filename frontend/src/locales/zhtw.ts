@@ -25,6 +25,13 @@ export default {
   commaSeparated: "（逗號分隔）",
   count: "計數",
   search: "搜尋",
+
+  user: "使用者",
+  password: "密碼",
+  preview: "預覽",
+  back: "返回",
+  selected: "已選",
+  noChange: "無變化",
   template: "模板",
   editor: "編輯器",
   error: {
@@ -230,6 +237,10 @@ export default {
     removeInbounds: "移除入站",
     addDays: "增加天數",
     addVolume: "增加流量",
+
+    editOutbounds: "批次編輯出站",
+    editHint: "勾選的欄位才會被替換，未勾選的保持原值",
+    editSuccess: "已更新 {count} 個出站",
   },
   types: {
     un: "用戶名",

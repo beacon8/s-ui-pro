@@ -25,6 +25,13 @@ export default {
   commaSeparated: "(comma separated)",
   count: "Count",
   search: "Search",
+
+  user: "User",
+  password: "Password",
+  preview: "Preview",
+  back: "Back",
+  selected: "Selected",
+  noChange: "No change",
   template: "Template",
   editor: "Editor",
   error: {
@@ -230,6 +237,10 @@ export default {
     removeInbounds: "Remove inbounds",
     addDays: "Add days",
     addVolume: "Add volume",
+
+    editOutbounds: "Batch Edit Outbounds",
+    editHint: "Check fields to replace; unchecked fields keep original values",
+    editSuccess: "Updated {count} outbounds",
   },
   types: {
     un: "Username",
