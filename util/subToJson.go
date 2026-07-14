@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/admin8800/s-ui/logger"
 	"github.com/admin8800/s-ui/util/common"
@@ -16,7 +17,7 @@ func GetExternalLink(url string) string {
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 
-	client := &http.Client{Transport: tr}
+	client := &http.Client{Transport: tr, Timeout: 10 * time.Second}
 
 	response, err := client.Get(url)
 	if err != nil {
@@ -37,6 +38,7 @@ func GetExternalLink(url string) string {
 
 // parseSubContent parses already-decoded content (post base64 fallback) into outbounds.
 func parseSubContent(data string) ([]map[string]interface{}, error) {
+	data = strings.TrimSpace(data)
 	var result []map[string]interface{}
 
 	if strings.HasPrefix(data, "{") && strings.HasSuffix(data, "}") {

@@ -2,6 +2,17 @@
   <v-app-bar :elevation="5">
     <v-icon icon="mdi-menu" @click="$emit('toggleDrawer')" />
     <v-app-bar-title :text="$t(<string>route.name)" class="align-center text-center " />
+    <v-btn
+      icon
+      variant="text"
+      href="https://donate.alireza0.dev"
+      target="_blank"
+      rel="noopener"
+      class="donate-btn"
+      v-tooltip="$t('donate')"
+    >
+      <v-icon icon="mdi-heart" color="red" size="1.5em" />
+    </v-btn>
     <v-menu>
       <template v-slot:activator="{ props }">
         <v-btn icon v-bind="props">
@@ -41,15 +52,16 @@
 </template>
 
 <script lang="ts" setup>
-import { useLocale, useTheme } from 'vuetify'
+import { useLocale } from 'vuetify'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { languages } from '@/locales'
+import { useThemeSwitcher } from '@/composables/useThemeSwitcher'
 
 const route = useRoute()
 const { locale: i18nLocale } = useI18n()
 const vuetifyLocale = useLocale()
-const theme = useTheme()
+const { themes, changeTheme, isActiveTheme } = useThemeSwitcher()
 
 const changeLocale = (l: string) => {
   i18nLocale.value = l
@@ -58,18 +70,4 @@ const changeLocale = (l: string) => {
   window.location.reload()
 }
 const isActiveLocale = (l: string) => i18nLocale.value === l
-const themes = [
-  { value: 'light', icon: 'mdi-white-balance-sunny' },
-  { value: 'dark', icon: 'mdi-moon-waning-crescent' },
-  { value: 'system', icon: 'mdi-laptop' },
-]
-
-const changeTheme = (th: string) => {
-  theme.change(th)
-  localStorage.setItem('theme', th)
-}
-const isActiveTheme = (th: string) => {
-  const current = localStorage.getItem('theme') ?? 'system'
-  return current == th
-}
 </script>

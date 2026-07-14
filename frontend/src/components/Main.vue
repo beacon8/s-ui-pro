@@ -112,7 +112,7 @@
                   </v-col>
                   <v-col cols="4" class="info-label">S-UI</v-col>
                   <v-col cols="8" class="info-value">
-                    <v-chip density="compact" color="blue">
+                    <v-chip density="compact" color="primary">
                       v{{ tilesData.sys?.appVersion }}
                     </v-chip>
                   </v-col>

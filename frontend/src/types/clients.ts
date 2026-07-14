@@ -19,6 +19,7 @@ export interface Client {
   down: number
   desc: string
   group: string
+  remark?: string
   delayStart?: boolean
   autoReset?: boolean
   resetDays?: number
@@ -28,6 +29,8 @@ export interface Client {
   upLimit?: number
   downLimit?: number
   limitUnit?: 'mbps' | 'kbps' | 'bps'
+  createdAt?: number
+  onlineAt?: number
 }
 
 const defaultClient: Client = {
@@ -42,6 +45,7 @@ const defaultClient: Client = {
   down: 0,
   desc: "",
   group: "",
+  remark: "",
   delayStart: false,
   autoReset: false,
   resetDays: 0,
@@ -51,6 +55,8 @@ const defaultClient: Client = {
   upLimit: 0,
   downLimit: 0,
   limitUnit: 'mbps',
+  createdAt: 0,
+  onlineAt: 0,
 }
 
 type Config = {

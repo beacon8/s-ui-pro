@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	_ "time/tzdata"
 
 	"github.com/admin8800/s-ui/app"
 	"github.com/admin8800/s-ui/cmd"

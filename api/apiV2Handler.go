@@ -47,6 +47,8 @@ func (a *APIv2Handler) postHandler(c *gin.Context) {
 		a.ApiService.RestartApp(c)
 	case "restartSb":
 		a.ApiService.RestartSb(c)
+	case "resetTraffic":
+		a.ApiService.ResetTraffic(c)
 	case "linkConvert":
 		a.ApiService.LinkConvert(c)
 	case "subConvert":
@@ -57,6 +59,8 @@ func (a *APIv2Handler) postHandler(c *gin.Context) {
 		a.ApiService.ImportDb(c)
 	case "importRules":
 		a.ApiService.ImportRules(c, username)
+	case "getCertPing":
+		a.ApiService.GetCertPing(c)
 	default:
 		jsonMsg(c, "failed", common.NewError("unknown action: ", action))
 	}

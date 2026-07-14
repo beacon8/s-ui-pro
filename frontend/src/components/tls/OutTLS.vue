@@ -14,6 +14,19 @@
           <v-switch color="primary" :label="$t('tls.insecure')" v-model="insecure" hide-details></v-switch>
         </v-col>
       </v-row>
+      <v-row v-if="insecure">
+        <v-col cols="12" sm="8">
+          <v-text-field
+            label="Base64 Pin SHA256 Fingerprint"
+            :loading="loading"
+            hide-details
+            v-model="pin_sha256">
+            <template v-slot:append>
+              <v-icon-btn @click="pingCert()" :loading="loading" icon="mdi-refresh" />
+            </template>
+          </v-text-field>
+        </v-col>
+      </v-row>
       <template v-if="optionCert">
         <v-row>
           <v-col cols="auto">
@@ -245,6 +258,7 @@
 </template>
 
 <script lang="ts">
+import HttpUtils from '@/plugins/httputil';
 import { oTls, defaultOutTls } from '@/types/tls'
 export default {
   props: ['outbound'],
@@ -290,7 +304,21 @@ export default {
         { title: "Android", value: "android" },
         { title: "Random", value: "random" },
         { title: "Randomized", value: "randomized" },
-      ]
+      ],
+      loading: false
+    }
+  },
+  methods: {
+    async pingCert() {
+      this.loading = true
+      const msg = await HttpUtils.post('api/getCertPing', {
+        domain: this.$props.outbound.server,
+        port: this.$props.outbound.server_port,
+      })
+      this.loading = false
+      if (msg.success) {
+        this.pin_sha256 = msg.obj.leafHash
+      }
     }
   },
   computed: {
@@ -375,6 +403,10 @@ export default {
     fragmentFallbackDelay: {
       get(): number { return parseInt(this.tls.fragment_fallback_delay?.replace('ms','')?? '500')?? 500 },
       set(v:number) { this.$props.outbound.tls.fragment_fallback_delay = v>0 ? `${v}ms` : undefined }
+    },
+    pin_sha256: {
+      get(): string { return this.tls.certificate_public_key_sha256?.join(',') ?? '' },
+      set(v: string) { this.$props.outbound.tls.certificate_public_key_sha256 = v.length > 0 ? v.split(',') : undefined }
     }
   }
 }

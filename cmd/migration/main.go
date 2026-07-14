@@ -25,6 +25,11 @@ func MigrateDb() {
 		log.Fatal(err)
 		return
 	}
+	defer func() {
+		if sqlDB, e := db.DB(); e == nil {
+			_ = sqlDB.Close()
+		}
+	}()
 	tx := db.Begin()
 	defer func() {
 		if err == nil {
@@ -67,6 +72,20 @@ func MigrateDb() {
 			log.Fatal("Migration to 1.3 failed: ", err)
 			return
 		}
+	}
+
+	// These migrations are idempotent and must also run for s-ui-pro databases
+	// whose version already passed upstream's 1.5.x version numbers.
+	err = to1_5_1(tx)
+	if err != nil {
+		log.Fatal("Migration to 1.5.1 failed: ", err)
+		return
+	}
+
+	err = to1_5_2(tx)
+	if err != nil {
+		log.Fatal("Migration to 1.5.2 failed: ", err)
+		return
 	}
 
 	// Set version

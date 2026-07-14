@@ -110,7 +110,6 @@ const gaugeColor = computed(() => {
   justify-content: center;
   padding-bottom: 20%;
   box-sizing: border-box;
-  font-family: 'Lexend', sans-serif;
   font-weight: bold;
   font-size: clamp(12px, 2.5vw, 18px);
   line-height: 1.1;

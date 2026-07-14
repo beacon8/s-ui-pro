@@ -60,5 +60,6 @@ func showAdmin() {
 	}
 	fmt.Println("First admin credentials:")
 	fmt.Println("\tUsername:\t", username)
-	fmt.Println("\tPassword:\t", userpasswd)
+	fmt.Println("\tPassword:\t <hashed, not recoverable>")
+	fmt.Println("To set a new password, run: s-ui admin -username <user> -password <pass>")
 }
