@@ -38,7 +38,7 @@ func (s *ResetTrafficJob) Run() {
 		return
 	}
 
-	if err = s.ClientService.ResetAllClientsTraffic(); err != nil {
+	if err = s.ConfigService.ResetTraffic(); err != nil {
 		logger.Warning("ResetTrafficJob: reset all clients failed: ", err)
 		return
 	}
@@ -53,8 +53,4 @@ func (s *ResetTrafficJob) Run() {
 	}
 	logger.Info("ResetTrafficJob: traffic reset for all clients; next reset at ", next.Format(time.RFC3339))
 
-	// Restart the whole core so re-enabled clients take effect.
-	if err = s.ConfigService.RestartCore(); err != nil {
-		logger.Error("ResetTrafficJob: unable to restart core: ", err)
-	}
 }

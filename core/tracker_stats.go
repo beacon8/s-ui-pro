@@ -112,3 +112,44 @@ func (c *StatsTracker) GetStats() *[]model.Stats {
 	}
 	return &s
 }
+
+// RestoreStats puts a failed persistence batch back into the live counters so
+// a transient database error cannot permanently drop traffic accounting.
+func (c *StatsTracker) RestoreStats(stats []model.Stats) {
+	c.access.Lock()
+	defer c.access.Unlock()
+
+	for _, stat := range stats {
+		var counters *map[string]Counter
+		switch stat.Resource {
+		case "inbound":
+			counters = &c.inbounds
+		case "outbound":
+			counters = &c.outbounds
+		case "user":
+			counters = &c.users
+		default:
+			continue
+		}
+		counter := c.loadOrCreateCounter(counters, stat.Tag)
+		if stat.Direction {
+			counter.read.Add(stat.Traffic)
+		} else {
+			counter.write.Add(stat.Traffic)
+		}
+	}
+}
+
+// ResetUsers clears current counters without replacing their pointers, so
+// traffic from already-open connections continues to be tracked afterwards.
+func (c *StatsTracker) ResetUsers(users []string) {
+	c.access.Lock()
+	defer c.access.Unlock()
+
+	for _, user := range users {
+		if counter, exists := c.users[user]; exists {
+			counter.read.Store(0)
+			counter.write.Store(0)
+		}
+	}
+}

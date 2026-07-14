@@ -346,14 +346,15 @@ func (s *InboundService) RestartInbounds(tx *gorm.DB, ids []uint) error {
 	if err != nil {
 		return err
 	}
+	type inboundRestart struct {
+		tag    string
+		config []byte
+	}
+	restarts := make([]inboundRestart, 0, len(inbounds))
+	// Construct every replacement before touching the running core. A malformed
+	// row must not remove an otherwise working inbound and leave a partial
+	// runtime behind.
 	for _, inbound := range inbounds {
-		err = corePtr.RemoveInbound(inbound.Tag)
-		if err != nil && err != os.ErrInvalid {
-			return err
-		}
-		// Close all existing connections
-		corePtr.GetInstance().ConnTracker().CloseConnByInbound(inbound.Tag)
-
 		inboundConfig, err := inbound.MarshalJSON()
 		if err != nil {
 			return err
@@ -362,7 +363,16 @@ func (s *InboundService) RestartInbounds(tx *gorm.DB, ids []uint) error {
 		if err != nil {
 			return err
 		}
-		err = corePtr.AddInbound(inboundConfig)
+		restarts = append(restarts, inboundRestart{tag: inbound.Tag, config: inboundConfig})
+	}
+	for _, restart := range restarts {
+		err = corePtr.RemoveInbound(restart.tag)
+		if err != nil && err != os.ErrInvalid {
+			return err
+		}
+		// Close all existing connections only after every replacement is ready.
+		corePtr.GetInstance().ConnTracker().CloseConnByInbound(restart.tag)
+		err = corePtr.AddInbound(restart.config)
 		if err != nil {
 			return err
 		}

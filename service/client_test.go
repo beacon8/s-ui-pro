@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/admin8800/s-ui/database"
 	"github.com/admin8800/s-ui/database/model"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -83,6 +84,38 @@ func TestClientEditBulkPreservesServerManagedFields(t *testing.T) {
 		!jsonEqual(saved.Inbounds, json.RawMessage(`[2]`)) ||
 		saved.UpLimit != 11 || saved.DownLimit != 21 || saved.LimitUnit != "kbps" {
 		t.Fatalf("bulk-editable fields were not updated: %+v", saved)
+	}
+}
+
+func TestResetAllClientsTrafficRollsBackWhenAuditInsertFails(t *testing.T) {
+	if err := database.InitDB(filepath.Join(t.TempDir(), "reset.db")); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if sqlDB, err := database.GetDB().DB(); err == nil {
+			_ = sqlDB.Close()
+		}
+	})
+
+	client := model.Client{Name: "rollback-client", Enable: false, Up: 10, Down: 20, TotalUp: 30, TotalDown: 40}
+	if err := database.GetDB().Create(&client).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := database.GetDB().Exec(`CREATE TRIGGER reject_reset_audit
+		BEFORE INSERT ON changes BEGIN SELECT RAISE(ABORT, 'reject reset audit'); END`).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	if err := (&ClientService{}).ResetAllClientsTraffic(); err == nil {
+		t.Fatal("reset succeeded even though its audit record was rejected")
+	}
+	var saved model.Client
+	if err := database.GetDB().First(&saved, client.Id).Error; err != nil {
+		t.Fatal(err)
+	}
+	if saved.Enable != client.Enable || saved.Up != client.Up || saved.Down != client.Down ||
+		saved.TotalUp != client.TotalUp || saved.TotalDown != client.TotalDown {
+		t.Fatalf("client reset was only partially rolled back: got %+v want %+v", saved, client)
 	}
 }
 

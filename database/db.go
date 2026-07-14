@@ -18,9 +18,9 @@ import (
 
 var db *gorm.DB
 
-func initUser() error {
+func initUser(target *gorm.DB) error {
 	var count int64
-	err := db.Model(&model.User{}).Count(&count).Error
+	err := target.Model(&model.User{}).Count(&count).Error
 	if err != nil {
 		return err
 	}
@@ -29,16 +29,16 @@ func initUser() error {
 			Username: "admin",
 			Password: "admin",
 		}
-		return db.Create(user).Error
+		return target.Create(user).Error
 	}
 	return nil
 }
 
-func OpenDB(dbPath string) error {
+func openDB(dbPath string) (*gorm.DB, error) {
 	dir := path.Dir(dbPath)
 	err := os.MkdirAll(dir, 01740)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	var gormLogger logger.Interface
@@ -60,46 +60,83 @@ func OpenDB(dbPath string) error {
 	// (default is ~2 MiB), reducing memory amplification if a connection
 	// escapes the pool.
 	dsn := dbPath + sep + "_busy_timeout=10000&_journal_mode=WAL&_cache_size=-200"
-	db, err = gorm.Open(sqlite.Open(dsn), c)
+	candidate, err := gorm.Open(sqlite.Open(dsn), c)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	sqlDB, err := db.DB()
+	sqlDB, err := candidate.DB()
 	if err != nil {
-		return err
+		return nil, err
 	}
-	sqlDB.SetMaxOpenConns(25)
-	sqlDB.SetMaxIdleConns(2)
+	// SQLite has a single writer. Keeping one application connection serializes
+	// panel, cron and restore writes in the pool instead of surfacing SQLITE_BUSY
+	// between this process's own goroutines.
+	sqlDB.SetMaxOpenConns(1)
+	sqlDB.SetMaxIdleConns(1)
 	sqlDB.SetConnMaxLifetime(time.Hour)
 	sqlDB.SetConnMaxIdleTime(5 * time.Minute)
 
 	if config.IsDebug() {
-		db = db.Debug()
+		candidate = candidate.Debug()
 	}
+	return candidate, nil
+}
+
+func OpenDB(dbPath string) error {
+	candidate, err := openDB(dbPath)
+	if err != nil {
+		return err
+	}
+	oldDB := db
+	db = candidate
+	closeDB(oldDB)
 	return nil
 }
 
 func InitDB(dbPath string) error {
-	err := OpenDB(dbPath)
+	candidate, err := prepareDB(dbPath)
 	if err != nil {
 		return err
 	}
+	oldDB := db
+	db = candidate
+	closeDB(oldDB)
+	return nil
+}
+
+func prepareDB(dbPath string) (*gorm.DB, error) {
+	candidate, err := openDB(dbPath)
+	if err != nil {
+		return nil, err
+	}
+	if err := initializeDB(candidate); err != nil {
+		closeDB(candidate)
+		return nil, err
+	}
+	return candidate, nil
+}
+
+func initializeDB(target *gorm.DB) error {
 
 	// Default Outbounds
-	if !db.Migrator().HasTable(&model.Outbound{}) {
-		db.Migrator().CreateTable(&model.Outbound{})
+	if !target.Migrator().HasTable(&model.Outbound{}) {
+		if err := target.Migrator().CreateTable(&model.Outbound{}); err != nil {
+			return err
+		}
 		defaultOutbound := []model.Outbound{
 			{Type: "direct", Tag: "direct", Options: json.RawMessage(`{}`)},
 		}
-		db.Create(&defaultOutbound)
+		if err := target.Create(&defaultOutbound).Error; err != nil {
+			return err
+		}
 	}
 
-	if err = dedupStats(); err != nil {
+	if err := dedupStats(target); err != nil {
 		return err
 	}
 
-	err = db.AutoMigrate(
+	if err := target.AutoMigrate(
 		&model.Setting{},
 		&model.Tls{},
 		&model.Inbound{},
@@ -111,26 +148,33 @@ func InitDB(dbPath string) error {
 		&model.Stats{},
 		&model.Client{},
 		&model.Changes{},
-	)
-	if err != nil {
+	); err != nil {
 		return err
 	}
-	err = initUser()
-	if err != nil {
+	if err := initUser(target); err != nil {
 		return err
 	}
 
 	return nil
 }
 
+func closeDB(target *gorm.DB) {
+	if target == nil {
+		return
+	}
+	if sqlDB, err := target.DB(); err == nil {
+		_ = sqlDB.Close()
+	}
+}
+
 // dedupStats merges traffic for duplicate groups of (resource, tag, date_time, direction)
-func dedupStats() error {
-	if !db.Migrator().HasTable(&model.Stats{}) {
+func dedupStats(target *gorm.DB) error {
+	if !target.Migrator().HasTable(&model.Stats{}) {
 		return nil
 	}
 
 	var dupGroups int64
-	err := db.Raw("SELECT COUNT(*) FROM (SELECT 1 FROM stats GROUP BY resource, tag, date_time, direction HAVING COUNT(*) > 1)").Scan(&dupGroups).Error
+	err := target.Raw("SELECT COUNT(*) FROM (SELECT 1 FROM stats GROUP BY resource, tag, date_time, direction HAVING COUNT(*) > 1)").Scan(&dupGroups).Error
 	if err != nil {
 		return err
 	}
@@ -139,7 +183,7 @@ func dedupStats() error {
 	}
 	log.Printf("stats: collapsing %d duplicate group(s) before adding unique index", dupGroups)
 
-	return db.Transaction(func(tx *gorm.DB) error {
+	return target.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Exec(`CREATE TEMP TABLE stats_dedup AS
 			SELECT MIN(id) AS id, resource, tag, date_time, direction, SUM(traffic) AS traffic
 			FROM stats GROUP BY resource, tag, date_time, direction`).Error; err != nil {

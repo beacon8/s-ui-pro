@@ -97,7 +97,7 @@ func (a *APP) Start() error {
 	return nil
 }
 
-func (a *APP) Stop() {
+func (a *APP) stop(discardCoreStats bool) {
 	a.cronJob.Stop()
 	err := a.subServer.Stop()
 	if err != nil {
@@ -107,10 +107,18 @@ func (a *APP) Stop() {
 	if err != nil {
 		logger.Warning("stop Web Server err:", err)
 	}
-	err = a.configService.StopCore()
+	if discardCoreStats {
+		err = a.configService.StopCoreDiscardStats()
+	} else {
+		err = a.configService.StopCore()
+	}
 	if err != nil {
 		logger.Warning("stop Core err:", err)
 	}
+}
+
+func (a *APP) Stop() {
+	a.stop(false)
 }
 
 func (a *APP) initLog() {
@@ -130,6 +138,11 @@ func (a *APP) initLog() {
 
 func (a *APP) RestartApp() {
 	a.Stop()
+	a.Start()
+}
+
+func (a *APP) RestartAfterDatabaseRestore() {
+	a.stop(true)
 	a.Start()
 }
 

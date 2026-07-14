@@ -60,6 +60,14 @@ For multi-step tasks, state a brief plan:
 
 Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
 
+## 5. Project Release Context
+
+Before changing upstream/Pro integration, read:
+
+- [s-ui-pro v1.6.20 upstream merge record](docs/releases/v1.6.20-upstream-merge.md)
+- [database backup, restore and locking safety](docs/database-safety.md)
+- [s-ui-pro v1.6.21 database safety release](docs/releases/v1.6.21-database-safety.md)
+
 ---
 
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.

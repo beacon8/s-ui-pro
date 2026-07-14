@@ -1,9 +1,12 @@
 package service
 
 import (
+	"database/sql"
+	"errors"
 	"sort"
 	"time"
 
+	"github.com/admin8800/s-ui/core"
 	"github.com/admin8800/s-ui/database"
 	"github.com/admin8800/s-ui/database/model"
 	"github.com/admin8800/s-ui/util/common"
@@ -24,6 +27,14 @@ type StatsService struct {
 }
 
 func (s *StatsService) SaveStats(enableTraffic bool, bucketSeconds int64) error {
+	coreLifecycleMu.Lock()
+	defer coreLifecycleMu.Unlock()
+	trafficAccountingMu.Lock()
+	defer trafficAccountingMu.Unlock()
+	return s.saveStatsLocked(enableTraffic, bucketSeconds)
+}
+
+func (s *StatsService) saveStatsLocked(enableTraffic bool, bucketSeconds int64) error {
 	if corePtr == nil || !corePtr.IsRunning() {
 		return nil
 	}
@@ -35,6 +46,10 @@ func (s *StatsService) SaveStats(enableTraffic bool, bucketSeconds int64) error 
 	if st == nil {
 		return nil
 	}
+	return s.saveTrackerStatsLocked(st, enableTraffic, bucketSeconds)
+}
+
+func (s *StatsService) saveTrackerStatsLocked(st *core.StatsTracker, enableTraffic bool, bucketSeconds int64) (resultErr error) {
 	stats := st.GetStats()
 
 	// Reset onlines
@@ -49,12 +64,19 @@ func (s *StatsService) SaveStats(enableTraffic bool, bucketSeconds int64) error 
 	var err error
 	db := database.GetDB()
 	tx := db.Begin()
+	if tx.Error != nil {
+		st.RestoreStats(*stats)
+		return tx.Error
+	}
+	committed := false
 	defer func() {
-		if err == nil {
-			tx.Commit()
-		} else {
-			tx.Rollback()
+		if committed {
+			return
 		}
+		if rollbackErr := tx.Rollback().Error; rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
+			resultErr = common.NewErrorf("%v; rollback failed: %v", resultErr, rollbackErr)
+		}
+		st.RestoreStats(*stats)
 	}()
 
 	now := time.Now().Unix()
@@ -108,6 +130,10 @@ func (s *StatsService) SaveStats(enableTraffic bool, bucketSeconds int64) error 
 	}
 
 	if !enableTraffic {
+		if err := tx.Commit().Error; err != nil {
+			return err
+		}
+		committed = true
 		return nil
 	}
 
@@ -124,7 +150,14 @@ func (s *StatsService) SaveStats(enableTraffic bool, bucketSeconds int64) error 
 		Columns:   []clause.Column{{Name: "resource"}, {Name: "tag"}, {Name: "date_time"}, {Name: "direction"}},
 		DoUpdates: clause.Assignments(map[string]interface{}{"traffic": gorm.Expr("stats.traffic + excluded.traffic")}),
 	}).Create(&stats).Error
-	return err
+	if err != nil {
+		return err
+	}
+	if err := tx.Commit().Error; err != nil {
+		return err
+	}
+	committed = true
+	return nil
 }
 
 func (s *StatsService) GetStats(resource string, tag string, limit int, start int64, end int64) (any, error) {

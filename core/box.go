@@ -554,9 +554,10 @@ func (s *Box) Close() error {
 	err = errors.Join(err, closeErr)
 	s.logger.Trace("close logger completed (", F.Seconds(time.Since(startTime).Seconds()), "s)")
 	s.logger.Info("sing-box closed (live time: ", F.Seconds(time.Since(s.createdAt).Seconds()), "s)")
-	if s.statsTracker != nil {
-		s.statsTracker.Reset()
-	}
+	// Keep the closed box's counters available to the core lifecycle owner.
+	// It takes a final snapshot after Close so bytes reported while connections
+	// are shutting down are not discarded. The box is released immediately
+	// afterwards, so clearing this map is not needed for reuse.
 	if s.connTracker != nil {
 		s.connTracker.Reset()
 	}

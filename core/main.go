@@ -47,11 +47,24 @@ func (c *Core) GetInstance() *Box {
 	return c.instance
 }
 
-func (c *Core) Start(sbConfig []byte) error {
+func parseOptions(sbConfig []byte) (option.Options, error) {
 	var opt option.Options
-	err := opt.UnmarshalJSONContext(globalCtx, sbConfig)
+	if err := opt.UnmarshalJSONContext(globalCtx, sbConfig); err != nil {
+		return option.Options{}, err
+	}
+	return opt, nil
+}
+
+func (c *Core) ValidateConfig(sbConfig []byte) error {
+	_, err := parseOptions(sbConfig)
+	return err
+}
+
+func (c *Core) Start(sbConfig []byte) error {
+	opt, err := parseOptions(sbConfig)
 	if err != nil {
 		logger.Error("Unmarshal config err:", err.Error())
+		return err
 	}
 
 	c.instance, err = NewBox(Options{

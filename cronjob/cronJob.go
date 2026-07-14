@@ -1,6 +1,7 @@
 package cronjob
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/admin8800/s-ui/logger"
@@ -24,38 +25,51 @@ func NewCronJob() *CronJob {
 }
 
 func (c *CronJob) Start(loc *time.Location, trafficAge int, statsBucketSeconds int64, globalReset string) error {
-	c.cron = cron.New(cron.WithLocation(loc), cron.WithParser(cronParser))
-	c.cron.Start()
+	c.cron = cron.New(
+		cron.WithLocation(loc),
+		cron.WithParser(cronParser),
+		cron.WithChain(cron.SkipIfStillRunning(cron.DefaultLogger)),
+	)
+	addJob := func(spec string, job cron.Job) error {
+		if _, err := c.cron.AddJob(spec, job); err != nil {
+			return fmt.Errorf("schedule %s: %w", spec, err)
+		}
+		return nil
+	}
 
-	go func() {
-		// Start stats job
-		c.cron.AddJob("@every 10s", NewStatsJob(trafficAge > 0, statsBucketSeconds))
-		// Start expiry job
-		c.cron.AddJob("@every 1m", NewDepleteJob())
-		// Periodic global traffic reset, only when a valid cron spec is configured
-		if globalReset != "" && globalReset != "off" {
-			schedule, err := cronParser.Parse(globalReset)
-			if err != nil {
-				logger.Warning("invalid globalReset cron spec <", globalReset, ">: ", err)
-			} else {
-				c.cron.AddJob(globalReset, NewResetTrafficJob(schedule))
-			}
+	if err := addJob("@every 10s", NewStatsJob(trafficAge > 0, statsBucketSeconds)); err != nil {
+		return err
+	}
+	if err := addJob("@every 1m", NewDepleteJob()); err != nil {
+		return err
+	}
+	if globalReset != "" && globalReset != "off" {
+		schedule, err := cronParser.Parse(globalReset)
+		if err != nil {
+			logger.Warning("invalid globalReset cron spec <", globalReset, ">: ", err)
+		} else {
+			c.cron.Schedule(schedule, NewResetTrafficJob(schedule))
 		}
-		// Start deleting old stats
-		if trafficAge > 0 {
-			c.cron.AddJob("@daily", NewDelStatsJob(trafficAge))
+	}
+	if trafficAge > 0 {
+		if err := addJob("@daily", NewDelStatsJob(trafficAge)); err != nil {
+			return err
 		}
-		// Start core if it is not running
-		c.cron.AddJob("@every 5s", NewCheckCoreJob())
-		// database WAL checkpoint
-		c.cron.AddJob("@every 10m", NewWALCheckpointJob())
-	}()
+	}
+	if err := addJob("@every 5s", NewCheckCoreJob()); err != nil {
+		return err
+	}
+	if err := addJob("@every 10m", NewWALCheckpointJob()); err != nil {
+		return err
+	}
+	c.cron.Start()
 
 	return nil
 }
 
 func (c *CronJob) Stop() {
 	if c.cron != nil {
-		c.cron.Stop()
+		<-c.cron.Stop().Done()
+		c.cron = nil
 	}
 }

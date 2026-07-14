@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"io"
+	"net/http"
 	"strconv"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/admin8800/s-ui/logger"
 	"github.com/admin8800/s-ui/service"
 	"github.com/admin8800/s-ui/util"
+	"github.com/admin8800/s-ui/util/common"
 
 	"github.com/gin-gonic/gin"
 )
@@ -265,6 +267,7 @@ func (a *ApiService) GetDb(c *gin.Context) {
 	}
 	c.Header("Content-Type", "application/octet-stream")
 	c.Header("Content-Disposition", "attachment; filename=s-ui_"+time.Now().Format("20060102-150405")+".db")
+	c.Header("Cache-Control", "no-store")
 	c.Writer.Write(db)
 }
 
@@ -343,11 +346,7 @@ func (a *ApiService) RestartSb(c *gin.Context) {
 }
 
 func (a *ApiService) ResetTraffic(c *gin.Context) {
-	if err := a.ClientService.ResetAllClientsTraffic(); err != nil {
-		jsonMsg(c, "resetTraffic", err)
-		return
-	}
-	err := a.ConfigService.RestartCore()
+	err := a.ConfigService.ResetTraffic()
 	jsonMsg(c, "resetTraffic", err)
 }
 
@@ -370,14 +369,35 @@ func (a *ApiService) SubConvertText(c *gin.Context) {
 }
 
 func (a *ApiService) ImportDb(c *gin.Context) {
-	file, _, err := c.Request.FormFile("db")
+	maxRestoreSize := database.MaxRestoreUploadSize()
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxRestoreSize+(1<<20))
+	reader, err := c.Request.MultipartReader()
 	if err != nil {
 		jsonMsg(c, "", err)
 		return
 	}
-	defer file.Close()
-	err = database.ImportDB(file)
-	jsonMsg(c, "", err)
+	for {
+		part, partErr := reader.NextPart()
+		if partErr == io.EOF {
+			jsonMsg(c, "", common.NewError("database file is required"))
+			return
+		}
+		if partErr != nil {
+			jsonMsg(c, "", partErr)
+			return
+		}
+		if part.FormName() != "db" {
+			_ = part.Close()
+			continue
+		}
+		err = database.ImportDBReader(part)
+		closeErr := part.Close()
+		if err == nil {
+			err = closeErr
+		}
+		jsonMsg(c, "", err)
+		return
+	}
 }
 
 func (a *ApiService) Logout(c *gin.Context) {

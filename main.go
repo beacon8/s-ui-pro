@@ -9,6 +9,7 @@ import (
 
 	"github.com/admin8800/s-ui/app"
 	"github.com/admin8800/s-ui/cmd"
+	"github.com/admin8800/s-ui/database"
 )
 
 func runApp() {
@@ -32,7 +33,11 @@ func runApp() {
 
 		switch sig {
 		case syscall.SIGHUP:
-			app.RestartApp()
+			if database.ConsumeRestoreRestart() {
+				app.RestartAfterDatabaseRestore()
+			} else {
+				app.RestartApp()
+			}
 		default:
 			app.Stop()
 			return

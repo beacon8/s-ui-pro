@@ -13,7 +13,9 @@ func NewWALCheckpointJob() *WALCheckpointJob {
 
 func (s *WALCheckpointJob) Run() {
 	db := database.GetDB()
-	if err := db.Exec("PRAGMA wal_checkpoint(FULL)").Error; err != nil {
+	// PASSIVE never waits for active readers or writers; SQLite will checkpoint
+	// as many frames as it safely can and leave the remainder for the next run.
+	if err := db.Exec("PRAGMA wal_checkpoint(PASSIVE)").Error; err != nil {
 		logger.Error("Error checkpointing WAL: ", err.Error())
 	}
 }

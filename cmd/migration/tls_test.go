@@ -36,7 +36,9 @@ func TestMigrateDbUpdatesTlsPinDataForProVersion(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	MigrateDb()
+	if err := MigrateDb(); err != nil {
+		t.Fatal(err)
+	}
 
 	db, err = gorm.Open(sqlite.Open(path))
 	if err != nil {

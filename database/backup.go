@@ -2,19 +2,21 @@ package database
 
 import (
 	"bytes"
-	"fmt"
+	"encoding/json"
 	"io"
 	"mime/multipart"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
 	"github.com/admin8800/s-ui/cmd/migration"
 	"github.com/admin8800/s-ui/config"
-	"github.com/admin8800/s-ui/database/model"
 	"github.com/admin8800/s-ui/logger"
 	"github.com/admin8800/s-ui/util/common"
 
@@ -22,292 +24,401 @@ import (
 	"gorm.io/gorm"
 )
 
-// backupBatchSize 限制单批 INSERT 的变量数，避免触发 SQLite 的
-// SQLITE_LIMIT_VARIABLE_NUMBER（默认 999）。100 行 × 6 列 = 600 < 999。
-const backupBatchSize = 100
+const (
+	sqliteSignature             = "SQLite format 3\x00"
+	defaultMaxRestoreUploadSize = int64(4 << 30)
+	restartDelay                = 500 * time.Millisecond
+)
+
+var (
+	backupRestoreMu       sync.RWMutex
+	restoreRestartPending atomic.Bool
+)
+
+var coreRestoreSchema = map[string][]string{
+	"settings":  {"key", "value"},
+	"users":     {"username", "password"},
+	"inbounds":  {"tag"},
+	"outbounds": {"tag"},
+	"clients":   {"name"},
+}
+
+var completeRestoreTables = []string{
+	"settings",
+	"tls",
+	"inbounds",
+	"outbounds",
+	"services",
+	"endpoints",
+	"users",
+	"tokens",
+	"stats",
+	"clients",
+	"changes",
+}
 
 func GetDb(exclude string) ([]byte, error) {
-	exclude_changes, exclude_stats := false, false
-	for _, table := range strings.Split(exclude, ",") {
-		if table == "changes" {
-			exclude_changes = true
-		} else if table == "stats" {
-			exclude_stats = true
-		}
-	}
+	backupRestoreMu.RLock()
+	defer backupRestoreMu.RUnlock()
 
-	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
-	if err != nil {
-		return nil, err
-	}
-	dbPath := dir + config.GetName() + "_" + time.Now().Format("20060102-200203") + ".db"
-
-	backupDb, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+	backupPath, err := createBackupFile(exclude)
 	if err != nil {
 		return nil, err
 	}
 	defer func() {
-		if sqlDB, e := backupDb.DB(); e == nil {
-			_ = sqlDB.Close()
+		if err := os.RemoveAll(filepath.Dir(backupPath)); err != nil {
+			logger.Warning("remove temporary backup directory: ", err)
 		}
 	}()
-	defer os.Remove(dbPath)
 
-	err = backupDb.AutoMigrate(
-		&model.Setting{},
-		&model.Tls{},
-		&model.Inbound{},
-		&model.Outbound{},
-		&model.Endpoint{},
-		&model.User{},
-		&model.Stats{},
-		&model.Client{},
-		&model.Changes{},
-	)
+	return os.ReadFile(backupPath)
+}
+
+// createBackupFile uses one SQLite statement to capture the whole database.
+// VACUUM INTO is a consistent snapshot and automatically includes new tables,
+// indexes and triggers without maintaining a second schema list here.
+func createBackupFile(exclude string) (string, error) {
+	if db == nil {
+		return "", common.NewError("database is not initialized")
+	}
+
+	backupDir, err := os.MkdirTemp("", config.GetName()+"-backup-*")
 	if err != nil {
-		return nil, err
+		return "", common.NewErrorf("create private backup directory: %v", err)
+	}
+	backupPath := filepath.Join(backupDir, "backup.db")
+	keep := false
+	defer func() {
+		if !keep {
+			_ = os.RemoveAll(backupDir)
+		}
+	}()
+
+	if err := db.Exec("VACUUM INTO ?", backupPath).Error; err != nil {
+		return "", common.NewErrorf("create consistent database snapshot: %v", err)
+	}
+	if err := os.Chmod(backupPath, 0600); err != nil {
+		return "", common.NewErrorf("secure backup file: %v", err)
 	}
 
-	var settings []model.Setting
-	var tls []model.Tls
-	var inbound []model.Inbound
-	var outbound []model.Outbound
-	var endpoint []model.Endpoint
-	var users []model.User
-	var clients []model.Client
-	var stats []model.Stats
-	var changes []model.Changes
+	backupDB, err := gorm.Open(sqlite.Open(backupPath), &gorm.Config{})
+	if err != nil {
+		return "", common.NewErrorf("open backup snapshot: %v", err)
+	}
+	backupSQL, err := backupDB.DB()
+	if err != nil {
+		return "", common.NewErrorf("open backup connection: %v", err)
+	}
+	backupSQL.SetMaxOpenConns(1)
+	closed := false
+	defer func() {
+		if !closed {
+			_ = backupSQL.Close()
+		}
+	}()
 
-	// Perform scans and handle errors
-	if err := db.Model(&model.Setting{}).Scan(&settings).Error; err != nil {
-		return nil, err
-	} else if len(settings) > 0 {
-		if err := backupDb.CreateInBatches(settings, backupBatchSize).Error; err != nil {
-			return nil, err
-		}
-	}
-	if err := db.Model(&model.Tls{}).Scan(&tls).Error; err != nil {
-		return nil, err
-	} else if len(tls) > 0 {
-		if err := backupDb.CreateInBatches(tls, backupBatchSize).Error; err != nil {
-			return nil, err
-		}
-	}
-	if err := db.Model(&model.Inbound{}).Scan(&inbound).Error; err != nil {
-		return nil, err
-	} else if len(inbound) > 0 {
-		if err := backupDb.CreateInBatches(inbound, backupBatchSize).Error; err != nil {
-			return nil, err
-		}
-	}
-	if err := db.Model(&model.Outbound{}).Scan(&outbound).Error; err != nil {
-		return nil, err
-	} else if len(outbound) > 0 {
-		if err := backupDb.CreateInBatches(outbound, backupBatchSize).Error; err != nil {
-			return nil, err
-		}
-	}
-	if err := db.Model(&model.Endpoint{}).Scan(&endpoint).Error; err != nil {
-		return nil, err
-	} else if len(endpoint) > 0 {
-		if err := backupDb.CreateInBatches(endpoint, backupBatchSize).Error; err != nil {
-			return nil, err
-		}
-	}
-	if err := db.Model(&model.User{}).Scan(&users).Error; err != nil {
-		return nil, err
-	} else if len(users) > 0 {
-		if err := backupDb.CreateInBatches(users, backupBatchSize).Error; err != nil {
-			return nil, err
-		}
-	}
-	if err := db.Model(&model.Client{}).Scan(&clients).Error; err != nil {
-		return nil, err
-	} else if len(clients) > 0 {
-		if err := backupDb.CreateInBatches(clients, backupBatchSize).Error; err != nil {
-			return nil, err
-		}
-	}
-
-	if !exclude_stats {
-		if err := db.Model(&model.Stats{}).Scan(&stats).Error; err != nil {
-			return nil, err
-		}
-		if len(stats) > 0 {
-			if err := backupDb.CreateInBatches(stats, backupBatchSize).Error; err != nil {
-				return nil, err
+	excluded := parseExcludedTables(exclude)
+	hasExcludedData := false
+	for _, table := range []string{"stats", "changes"} {
+		if excluded[table] {
+			hasExcludedData = true
+			if err := backupDB.Exec("DELETE FROM " + table).Error; err != nil {
+				return "", common.NewErrorf("exclude %s from backup: %v", table, err)
 			}
 		}
 	}
-	if !exclude_changes {
-		if err := db.Model(&model.Changes{}).Scan(&changes).Error; err != nil {
-			return nil, err
-		}
-		if len(changes) > 0 {
-			if err := backupDb.CreateInBatches(changes, backupBatchSize).Error; err != nil {
-				return nil, err
-			}
+	// Rebuild the file so excluded rows cannot remain recoverable in free pages.
+	if hasExcludedData {
+		if err := backupDB.Exec("VACUUM").Error; err != nil {
+			return "", common.NewErrorf("purge excluded backup data: %v", err)
 		}
 	}
-
-	// Update WAL
-	err = backupDb.Exec("PRAGMA wal_checkpoint;").Error
-	if err != nil {
-		return nil, err
+	if err := validateSQLiteDB(backupDB, completeRestoreTables); err != nil {
+		return "", common.NewErrorf("validate backup snapshot: %v", err)
 	}
-
-	bdb, _ := backupDb.DB()
-	bdb.Close()
-
-	// Open the file for reading
-	file, err := os.Open(dbPath)
-	if err != nil {
-		return nil, err
+	if err := backupSQL.Close(); err != nil {
+		return "", common.NewErrorf("close backup snapshot: %v", err)
 	}
-	defer file.Close()
+	closed = true
+	keep = true
+	return backupPath, nil
+}
 
-	// Read the file contents
-	fileContents, err := io.ReadAll(file)
-	if err != nil {
-		return nil, err
+func parseExcludedTables(exclude string) map[string]bool {
+	result := make(map[string]bool)
+	for _, table := range strings.Split(exclude, ",") {
+		table = strings.ToLower(strings.TrimSpace(table))
+		if table == "stats" || table == "changes" {
+			result[table] = true
+		}
 	}
-
-	return fileContents, nil
+	return result
 }
 
 func ImportDB(file multipart.File) error {
-	// Check if the file is a SQLite database
-	isValidDb, err := IsSQLiteDB(file)
-	if err != nil {
-		return common.NewErrorf("Error checking db file format: %v", err)
+	return importDB(file, SendSighup)
+}
+
+func ImportDBReader(file io.Reader) error {
+	return importDB(file, SendSighup)
+}
+
+func MaxRestoreUploadSize() int64 {
+	if value, err := strconv.ParseInt(os.Getenv("SUI_MAX_RESTORE_BYTES"), 10, 64); err == nil && value > 0 && value <= 1<<50 {
+		return value
 	}
-	if !isValidDb {
-		return common.NewError("Invalid db file format")
+	return defaultMaxRestoreUploadSize
+}
+
+func importDB(file io.Reader, restart func() error) error {
+	if file == nil {
+		return common.NewError("database file is required")
+	}
+	dbPath := config.GetDBPath()
+	if err := os.MkdirAll(filepath.Dir(dbPath), 01740); err != nil {
+		return common.NewErrorf("create database directory: %v", err)
 	}
 
-	// Reset the file reader to the beginning
-	_, err = file.Seek(0, 0)
+	tempFile, err := os.CreateTemp(filepath.Dir(dbPath), "."+config.GetName()+"-restore-*.db")
 	if err != nil {
-		return common.NewErrorf("Error resetting file reader: %v", err)
+		return common.NewErrorf("create restore file: %v", err)
+	}
+	tempPath := tempFile.Name()
+	closed := false
+	defer func() {
+		if !closed {
+			_ = tempFile.Close()
+		}
+		removeSQLiteFiles(tempPath)
+	}()
+
+	maxRestoreSize := MaxRestoreUploadSize()
+	written, err := io.Copy(tempFile, io.LimitReader(file, maxRestoreSize+1))
+	if err != nil {
+		return common.NewErrorf("save restore file: %v", err)
+	}
+	if written > maxRestoreSize {
+		return common.NewErrorf("restore file exceeds %d bytes", maxRestoreSize)
+	}
+	if err := tempFile.Sync(); err != nil {
+		return common.NewErrorf("sync restore file: %v", err)
+	}
+	if err := tempFile.Close(); err != nil {
+		return common.NewErrorf("close restore file: %v", err)
+	}
+	closed = true
+
+	if err := validateSQLiteFile(tempPath, nil); err != nil {
+		return common.NewErrorf("invalid database file: %v", err)
+	}
+	if err := validateSUIRestoreFile(tempPath, coreRestoreSchema); err != nil {
+		return common.NewErrorf("invalid s-ui database: %v", err)
+	}
+	if err := migration.MigrateDbAt(tempPath); err != nil {
+		return common.NewErrorf("migrate restore database: %v", err)
 	}
 
-	// Save the file as temporary file
-	tempPath := fmt.Sprintf("%s.temp", config.GetDBPath())
-	// Remove the existing fallback file (if any) before creating one
-	_, err = os.Stat(tempPath)
-	if err == nil {
-		errRemove := os.Remove(tempPath)
-		if errRemove != nil {
-			return common.NewErrorf("Error removing existing temporary db file: %v", errRemove)
+	preparedDB, err := prepareDB(tempPath)
+	if err != nil {
+		return common.NewErrorf("prepare restore database: %v", err)
+	}
+	preparedSQL, err := preparedDB.DB()
+	if err != nil {
+		closeDB(preparedDB)
+		return common.NewErrorf("open prepared restore connection: %v", err)
+	}
+	if err := preparedDB.Exec("PRAGMA wal_checkpoint(TRUNCATE)").Error; err != nil {
+		_ = preparedSQL.Close()
+		return common.NewErrorf("checkpoint prepared restore database: %v", err)
+	}
+	if err := preparedSQL.Close(); err != nil {
+		return common.NewErrorf("close prepared restore database: %v", err)
+	}
+	if err := validateSQLiteFile(tempPath, completeRestoreTables); err != nil {
+		return common.NewErrorf("validate prepared restore database: %v", err)
+	}
+	if err := validateSUIRestoreFile(tempPath, coreRestoreSchema); err != nil {
+		return common.NewErrorf("validate prepared s-ui database: %v", err)
+	}
+
+	// Uploading and validating use a unique private file and do not need to
+	// block backups. Serialize only the live database commit and restart.
+	backupRestoreMu.Lock()
+	defer backupRestoreMu.Unlock()
+	if err := ensureMatchingPageSize(tempPath); err != nil {
+		return common.NewErrorf("restore database is incompatible: %v", err)
+	}
+	if err := replaceSQLiteDatabase(tempPath); err != nil {
+		return common.NewErrorf("restore database: %v", err)
+	}
+	if restart != nil {
+		if err := restart(); err != nil {
+			return common.NewErrorf("database restored successfully, but app restart failed; restart manually: %v", err)
 		}
 	}
-	// Create the temporary file
-	tempFile, err := os.Create(tempPath)
-	if err != nil {
-		return common.NewErrorf("Error creating temporary db file: %v", err)
-	}
-	defer tempFile.Close()
-
-	// Remove temp file before returning
-	defer os.Remove(tempPath)
-
-	// Close old DB
-	old_db, _ := db.DB()
-	old_db.Close()
-
-	// Save uploaded file to temporary file
-	_, err = io.Copy(tempFile, file)
-	if err != nil {
-		return common.NewErrorf("Error saving db: %v", err)
-	}
-
-	// Check if we can init db or not
-	newDb, err := gorm.Open(sqlite.Open(tempPath), &gorm.Config{})
-	if err != nil {
-		return common.NewErrorf("Error checking db: %v", err)
-	}
-	newDb_db, _ := newDb.DB()
-	if newDb_db != nil {
-		newDb_db.Close()
-	}
-
-	// Backup the current database for fallback
-	fallbackPath := fmt.Sprintf("%s.backup", config.GetDBPath())
-	// Remove the existing fallback file (if any)
-	_, err = os.Stat(fallbackPath)
-	if err == nil {
-		errRemove := os.Remove(fallbackPath)
-		if errRemove != nil {
-			return common.NewErrorf("Error removing existing fallback db file: %v", errRemove)
-		}
-	}
-	// Move the current database to the fallback location
-	err = os.Rename(config.GetDBPath(), fallbackPath)
-	if err != nil {
-		return common.NewErrorf("Error backing up temporary db file: %v", err)
-	}
-
-	// Remove the temporary file before returning
-	defer os.Remove(fallbackPath)
-
-	// Move temp to DB path
-	err = os.Rename(tempPath, config.GetDBPath())
-	if err != nil {
-		errRename := os.Rename(fallbackPath, config.GetDBPath())
-		if errRename != nil {
-			return common.NewErrorf("Error moving db file and restoring fallback: %v", errRename)
-		}
-		return common.NewErrorf("Error moving db file: %v", err)
-	}
-
-	// Migrate DB
-	migration.MigrateDb()
-	err = InitDB(config.GetDBPath())
-	if err != nil {
-		errRename := os.Rename(fallbackPath, config.GetDBPath())
-		if errRename != nil {
-			return common.NewErrorf("Error migrating db and restoring fallback: %v", errRename)
-		}
-		return common.NewErrorf("Error migrating db: %v", err)
-	}
-
-	// Restart app
-	err = SendSighup()
-	if err != nil {
-		return common.NewErrorf("Error restarting app: %v", err)
-	}
-
 	return nil
 }
 
-func IsSQLiteDB(file io.Reader) (bool, error) {
-	signature := []byte("SQLite format 3\x00")
-	buf := make([]byte, len(signature))
-	_, err := file.Read(buf)
+func validateSQLiteFile(path string, requiredTables []string) error {
+	file, err := os.Open(path)
 	if err != nil {
+		return err
+	}
+	isSQLite, signatureErr := IsSQLiteDB(file)
+	closeErr := file.Close()
+	if signatureErr != nil {
+		return signatureErr
+	}
+	if closeErr != nil {
+		return closeErr
+	}
+	if !isSQLite {
+		return common.NewError("invalid SQLite header")
+	}
+
+	target, err := gorm.Open(sqlite.Open(path), &gorm.Config{})
+	if err != nil {
+		return err
+	}
+	sqlDB, err := target.DB()
+	if err != nil {
+		return err
+	}
+	sqlDB.SetMaxOpenConns(1)
+	defer sqlDB.Close()
+	return validateSQLiteDB(target, requiredTables)
+}
+
+func validateSQLiteDB(target *gorm.DB, requiredTables []string) error {
+	if target == nil {
+		return common.NewError("database is not initialized")
+	}
+	var results []string
+	if err := target.Raw("PRAGMA integrity_check").Scan(&results).Error; err != nil {
+		return err
+	}
+	if len(results) != 1 || strings.ToLower(results[0]) != "ok" {
+		return common.NewErrorf("integrity_check failed: %v", results)
+	}
+	for _, table := range requiredTables {
+		if !target.Migrator().HasTable(table) {
+			return common.NewErrorf("required table %s is missing", table)
+		}
+	}
+	return nil
+}
+
+func validateSUIRestoreFile(path string, schema map[string][]string) error {
+	target, err := gorm.Open(sqlite.Open(path), &gorm.Config{})
+	if err != nil {
+		return err
+	}
+	sqlDB, err := target.DB()
+	if err != nil {
+		return err
+	}
+	sqlDB.SetMaxOpenConns(1)
+	defer sqlDB.Close()
+
+	for table, columns := range schema {
+		if !target.Migrator().HasTable(table) {
+			return common.NewErrorf("required table %s is missing", table)
+		}
+		for _, column := range columns {
+			if !target.Migrator().HasColumn(table, column) {
+				return common.NewErrorf("required column %s.%s is missing", table, column)
+			}
+		}
+	}
+	var userCount int64
+	if err := target.Table("users").Count(&userCount).Error; err != nil {
+		return err
+	}
+	if userCount < 1 {
+		return common.NewError("database has no users")
+	}
+	var configs []string
+	if err := target.Table("settings").Where("key = ?", "config").Pluck("value", &configs).Error; err != nil {
+		return err
+	}
+	if len(configs) != 1 {
+		return common.NewError("database has no unique config setting")
+	}
+	if !json.Valid([]byte(configs[0])) {
+		return common.NewError("database config setting is not valid JSON")
+	}
+	return nil
+}
+
+func ensureMatchingPageSize(sourcePath string) error {
+	if db == nil {
+		return common.NewError("database is not initialized")
+	}
+	var livePageSize int
+	if err := db.Raw("PRAGMA page_size").Scan(&livePageSize).Error; err != nil {
+		return err
+	}
+	source, err := gorm.Open(sqlite.Open(sourcePath), &gorm.Config{})
+	if err != nil {
+		return err
+	}
+	sourceSQL, err := source.DB()
+	if err != nil {
+		return err
+	}
+	defer sourceSQL.Close()
+	var sourcePageSize int
+	if err := source.Raw("PRAGMA page_size").Scan(&sourcePageSize).Error; err != nil {
+		return err
+	}
+	if livePageSize != sourcePageSize {
+		return common.NewErrorf("SQLite page size %d does not match live database page size %d", sourcePageSize, livePageSize)
+	}
+	return nil
+}
+
+func removeSQLiteFiles(path string) {
+	for _, candidate := range []string{path, path + "-wal", path + "-shm"} {
+		if err := os.Remove(candidate); err != nil && !os.IsNotExist(err) {
+			logger.Warning("remove temporary database file ", candidate, ": ", err)
+		}
+	}
+}
+
+func IsSQLiteDB(file io.Reader) (bool, error) {
+	buf := make([]byte, len(sqliteSignature))
+	if _, err := io.ReadFull(file, buf); err != nil {
 		return false, err
 	}
-	return bytes.Equal(buf, signature), nil
+	return bytes.Equal(buf, []byte(sqliteSignature)), nil
 }
 
 func SendSighup() error {
-	// Get the current process
 	process, err := os.FindProcess(os.Getpid())
 	if err != nil {
 		return err
 	}
 
-	// Send SIGHUP to the current process
+	// The signal handler must discard the old core's counters: the global DB
+	// already points at the restored snapshot, so a normal graceful flush would
+	// contaminate it with traffic from the pre-restore runtime.
+	restoreRestartPending.Store(true)
 	go func() {
-		time.Sleep(3 * time.Second)
+		time.Sleep(restartDelay)
+		var signalErr error
 		if runtime.GOOS == "windows" {
-			err = process.Kill()
+			signalErr = process.Kill()
 		} else {
-			err = process.Signal(syscall.SIGHUP)
+			signalErr = process.Signal(syscall.SIGHUP)
 		}
-		if err != nil {
-			logger.Error("send signal SIGHUP failed:", err)
+		if signalErr != nil {
+			restoreRestartPending.Store(false)
+			logger.Error("send signal SIGHUP failed:", signalErr)
 		}
 	}()
 	return nil
+}
+
+func ConsumeRestoreRestart() bool {
+	return restoreRestartPending.Swap(false)
 }

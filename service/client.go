@@ -2,7 +2,9 @@ package service
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"strings"
 	"time"
 
@@ -17,6 +19,13 @@ import (
 )
 
 type ClientService struct{}
+
+type clientResetResult struct {
+	inboundIds       []uint
+	reEnabled        []*model.Client
+	resetTrafficUser []string
+	changed          bool
+}
 
 // toBytesPerSec converts a limit value + unit into bytes per second (decimal).
 // 0 or negative returns 0 (unlimited). Default unit is mbps.
@@ -481,7 +490,9 @@ func (s *ClientService) UpdateLinksByInboundChange(tx *gorm.DB, inbounds *[]mode
 }
 
 func (s *ClientService) DepleteClients() ([]uint, error) {
-	var err error
+	trafficAccountingMu.Lock()
+	defer trafficAccountingMu.Unlock()
+
 	var clients []model.Client
 	var changes []model.Changes
 	var users []string
@@ -491,27 +502,27 @@ func (s *ClientService) DepleteClients() ([]uint, error) {
 	db := database.GetDB()
 
 	tx := db.Begin()
-	defer func() {
-		if err == nil {
-			tx.Commit()
-			if err1 := db.Exec("PRAGMA wal_checkpoint(FULL)").Error; err1 != nil {
-				logger.Error("Error checkpointing WAL: ", err1.Error())
-			}
-		} else {
-			tx.Rollback()
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+	rollback := func(cause error) ([]uint, error) {
+		if rollbackErr := tx.Rollback().Error; rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
+			cause = common.NewErrorf("%v; rollback failed: %v", cause, rollbackErr)
 		}
-	}()
+		return nil, cause
+	}
 
 	// Reset clients
-	inboundIds, err = s.ResetClients(tx, dt)
+	resetResult, err := s.resetClients(tx, dt)
 	if err != nil {
-		return nil, err
+		return rollback(err)
 	}
+	inboundIds = resetResult.inboundIds
 
 	// Deplete clients
 	err = tx.Model(model.Client{}).Where("enable = true AND ((volume >0 AND up+down > volume) OR (expiry > 0 AND expiry < ?))", dt).Scan(&clients).Error
 	if err != nil {
-		return nil, err
+		return rollback(err)
 	}
 
 	for _, client := range clients {
@@ -534,13 +545,29 @@ func (s *ClientService) DepleteClients() ([]uint, error) {
 	if len(changes) > 0 {
 		err = tx.Model(model.Client{}).Where("enable = true AND ((volume >0 AND up+down > volume) OR (expiry > 0 AND expiry < ?))", dt).Update("enable", false).Error
 		if err != nil {
-			return nil, err
+			return rollback(err)
 		}
 		err = tx.Model(model.Changes{}).Create(&changes).Error
 		if err != nil {
-			return nil, err
+			return rollback(err)
 		}
+	}
+	if err := tx.Commit().Error; err != nil {
+		return rollback(err)
+	}
+
+	if resetResult.changed || len(changes) > 0 {
 		LastUpdate = dt
+		for _, client := range resetResult.reEnabled {
+			applyClientLimit(client)
+		}
+		if corePtr != nil && corePtr.IsRunning() {
+			if box := corePtr.GetInstance(); box != nil && box.StatsTracker() != nil {
+				box.StatsTracker().ResetUsers(resetResult.resetTrafficUser)
+			}
+		}
+	}
+	if len(changes) > 0 {
 		for _, name := range users {
 			removeClientLimit(name)
 		}
@@ -549,12 +576,11 @@ func (s *ClientService) DepleteClients() ([]uint, error) {
 	return inboundIds, nil
 }
 
-func (s *ClientService) ResetClients(tx *gorm.DB, dt int64) ([]uint, error) {
+func (s *ClientService) resetClients(tx *gorm.DB, dt int64) (*clientResetResult, error) {
 	var err error
 	var resetClients, allClients []*model.Client
-	var reEnabled []*model.Client
 	var changes []model.Changes
-	var inboundIds []uint
+	result := &clientResetResult{}
 	// Set delay start without periodic reset
 	err = tx.Model(model.Client{}).
 		Where("enable = true AND delay_start = true AND auto_reset = false AND (Up + Down) > 0").Find(&resetClients).Error
@@ -600,6 +626,7 @@ func (s *ClientService) ResetClients(tx *gorm.DB, dt int64) ([]uint, error) {
 		return nil, err
 	}
 	for _, client := range resetClients {
+		result.resetTrafficUser = append(result.resetTrafficUser, client.Name)
 		client.NextReset = dt + (int64(client.ResetDays) * 86400)
 		client.TotalUp += client.Up
 		client.TotalDown += client.Down
@@ -609,8 +636,8 @@ func (s *ClientService) ResetClients(tx *gorm.DB, dt int64) ([]uint, error) {
 			client.Enable = true
 			var clientInboundIds []uint
 			json.Unmarshal(client.Inbounds, &clientInboundIds)
-			inboundIds = common.UnionUintArray(inboundIds, clientInboundIds)
-			reEnabled = append(reEnabled, client)
+			result.inboundIds = common.UnionUintArray(result.inboundIds, clientInboundIds)
+			result.reEnabled = append(result.reEnabled, client)
 		}
 	}
 	allClients = append(allClients, resetClients...)
@@ -621,9 +648,7 @@ func (s *ClientService) ResetClients(tx *gorm.DB, dt int64) ([]uint, error) {
 		if err != nil {
 			return nil, err
 		}
-		for _, client := range reEnabled {
-			applyClientLimit(client)
-		}
+		result.changed = true
 	}
 
 	// Save changes
@@ -632,9 +657,9 @@ func (s *ClientService) ResetClients(tx *gorm.DB, dt int64) ([]uint, error) {
 		if err != nil {
 			return nil, err
 		}
-		LastUpdate = dt
+		result.changed = true
 	}
-	return inboundIds, nil
+	return result, nil
 }
 
 // ResetAllClientsTraffic zeroes up/down for every client (accumulating into the
@@ -642,32 +667,44 @@ func (s *ClientService) ResetClients(tx *gorm.DB, dt int64) ([]uint, error) {
 // the global periodic traffic reset; the caller restarts the core afterwards so
 // re-enabled clients take effect.
 func (s *ClientService) ResetAllClientsTraffic() error {
+	trafficAccountingMu.Lock()
+	defer trafficAccountingMu.Unlock()
+	return s.resetAllClientsTrafficLocked()
+}
+
+func (s *ClientService) resetAllClientsTrafficLocked() error {
 	db := database.GetDB()
 	dt := time.Now().Unix()
-
-	result := db.Model(model.Client{}).
-		Where("(up + down) > 0 OR enable = false").
-		UpdateColumns(map[string]interface{}{
-			"total_up":   gorm.Expr("total_up + up"),
-			"total_down": gorm.Expr("total_down + down"),
-			"up":         0,
-			"down":       0,
-			"enable":     true,
-		})
-	if result.Error != nil {
-		return result.Error
-	}
-
-	if result.RowsAffected > 0 {
-		if err := db.Create(&model.Changes{
+	var rowsAffected int64
+	err := db.Transaction(func(tx *gorm.DB) error {
+		result := tx.Model(model.Client{}).
+			Where("(up + down) > 0 OR enable = false").
+			UpdateColumns(map[string]interface{}{
+				"total_up":   gorm.Expr("total_up + up"),
+				"total_down": gorm.Expr("total_down + down"),
+				"up":         0,
+				"down":       0,
+				"enable":     true,
+			})
+		if result.Error != nil {
+			return result.Error
+		}
+		rowsAffected = result.RowsAffected
+		if rowsAffected == 0 {
+			return nil
+		}
+		return tx.Create(&model.Changes{
 			DateTime: dt,
 			Actor:    "ResetTrafficJob",
 			Key:      "clients",
 			Action:   "reset",
 			Obj:      json.RawMessage("\"all\""),
-		}).Error; err != nil {
-			return err
-		}
+		}).Error
+	})
+	if err != nil {
+		return err
+	}
+	if rowsAffected > 0 {
 		LastUpdate = dt
 	}
 

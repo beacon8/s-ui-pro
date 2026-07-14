@@ -1,14 +1,12 @@
 package cronjob
 
 import (
-	"github.com/admin8800/s-ui/database"
 	"github.com/admin8800/s-ui/logger"
 	"github.com/admin8800/s-ui/service"
 )
 
 type DepleteJob struct {
-	service.ClientService
-	service.InboundService
+	service.ConfigService
 }
 
 func NewDepleteJob() *DepleteJob {
@@ -16,15 +14,7 @@ func NewDepleteJob() *DepleteJob {
 }
 
 func (s *DepleteJob) Run() {
-	inboundIds, err := s.ClientService.DepleteClients()
-	if err != nil {
+	if err := s.ConfigService.DepleteClients(); err != nil {
 		logger.Warning("Disable depleted users failed: ", err)
-		return
-	}
-	if len(inboundIds) > 0 {
-		err := s.InboundService.RestartInbounds(database.GetDB(), inboundIds)
-		if err != nil {
-			logger.Error("unable to restart inbounds: ", err)
-		}
 	}
 }
