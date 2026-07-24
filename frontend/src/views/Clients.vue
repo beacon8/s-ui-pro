@@ -147,11 +147,13 @@
   <v-row>
     <v-col cols="12">
       <v-data-table
+        v-model:page="page"
         :headers="headers"
-        :items="filterSettings.enabled ? filterSettings.filteredClients : clients"
-        :hide-default-footer="filterSettings.enabled ? filterSettings.filteredClients.length<=10 : clients.length<=10"
+        :items="pagedClients"
+        :items-length="displayClientsCount"
         :items-per-page="itemPerPage"
         @update:items-per-page="setItemPerPage($event)"
+        :hide-default-footer="displayClientsCount<=10"
         hide-no-data
         fixed-header
         item-value="name"
@@ -336,6 +338,16 @@ const headers = [
 ]
 
 const itemPerPage = ref(localStorage.getItem('items-per-page') || '10')
+const page = ref(1)
+
+// 过滤后的数据（filter 或全量）
+const displayClients = computed(() => filterSettings.value.enabled ? (filterSettings.value.filteredClients ?? []) : clients.value)
+const displayClientsCount = computed(() => displayClients.value.length)
+// 只传当前页数据给表格，避免 1600+ 行全量渲染卡顿
+const pagedClients = computed(() => {
+  const start = (page.value - 1) * Math.max(1, parseInt(itemPerPage.value) || 10)
+  return displayClients.value.slice(start, start + Math.max(1, parseInt(itemPerPage.value) || 10))
+})
 
 const setItemPerPage = (items: number) => {
   itemPerPage.value = items.toString()
