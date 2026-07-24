@@ -143,6 +143,17 @@
         <v-tooltip activator="parent" location="top" :text="$t('stats.topUsers')"></v-tooltip>
       </v-btn>
     </v-col>
+    <v-col cols="12" sm="4" md="3">
+      <v-text-field
+        v-model="searchText"
+        :label="$t('search')"
+        prepend-inner-icon="mdi-magnify"
+        clearable
+        hide-details
+        density="compact"
+        variant="outlined"
+      ></v-text-field>
+    </v-col>
   </v-row>
   <v-row>
     <v-col cols="12">
@@ -277,7 +288,7 @@ import ClientLinks from '@/layouts/modals/ClientLinks.vue'
 import Stats from '@/layouts/modals/Stats.vue'
 import TopUsers from '@/layouts/modals/TopUsers.vue'
 import { Client } from '@/types/clients'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { HumanReadable } from '@/plugins/utils'
 import { i18n, locale } from '@/locales'
 import { useDisplay } from 'vuetify'
@@ -340,9 +351,22 @@ const headers = [
 const itemPerPage = ref(localStorage.getItem('items-per-page') || '10')
 const page = ref(1)
 
-// 过滤后的数据（filter 或全量）
-const displayClients = computed(() => filterSettings.value.enabled ? (filterSettings.value.filteredClients ?? []) : clients.value)
+// 模糊搜索
+const searchText = ref('')
+const searchClients = computed(() => {
+  const q = searchText.value?.trim().toLowerCase()
+  if (!q) return clients.value
+  return clients.value.filter((c: any) => {
+    const fields = [c.name ?? '', c.desc ?? '', c.group ?? '']
+    return fields.some((f: string) => f.toLowerCase().includes(q))
+  })
+})
+
+// 过滤后的数据（filter 模糊搜索 或 全量）
+const displayClients = computed(() => filterSettings.value.enabled ? (filterSettings.value.filteredClients ?? []) : searchClients.value)
 const displayClientsCount = computed(() => displayClients.value.length)
+// 搜索/Fitler 变化时回到第 1 页
+watch([searchText, () => filterSettings.value.enabled], () => { page.value = 1 })
 // 只传当前页数据给表格，避免 1600+ 行全量渲染卡顿
 const pagedClients = computed(() => {
   const start = (page.value - 1) * Math.max(1, parseInt(itemPerPage.value) || 10)
