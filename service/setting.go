@@ -135,7 +135,7 @@ func (s *SettingService) getString(key string) (string, error) {
 }
 
 func (s *SettingService) saveSetting(key string, value string) error {
-	setting, err := s.getSetting(key)
+	_, err := s.getSetting(key)
 	db := database.GetDB()
 	if database.IsNotFound(err) {
 		return db.Create(&model.Setting{
@@ -145,9 +145,7 @@ func (s *SettingService) saveSetting(key string, value string) error {
 	} else if err != nil {
 		return err
 	}
-	setting.Key = key
-	setting.Value = value
-	return db.Save(setting).Error
+	return db.Model(model.Setting{}).Where("key = ?", key).Update("value", value).Error
 }
 
 func (s *SettingService) setString(key string, value string) error {
