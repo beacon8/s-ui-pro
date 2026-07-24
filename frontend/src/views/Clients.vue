@@ -158,13 +158,10 @@
   <v-row>
     <v-col cols="12">
       <v-data-table
-        v-model:page="page"
         :headers="headers"
         :items="pagedClients"
-        :items-length="displayClientsCount"
-        :items-per-page="itemPerPage"
-        @update:items-per-page="setItemPerPage($event)"
-        :hide-default-footer="displayClientsCount<=10"
+        :items-per-page="-1"
+        hide-default-footer
         hide-no-data
         fixed-header
         item-value="name"
@@ -268,6 +265,11 @@
       </v-data-table>
     </v-col>
   </v-row>
+  <v-row v-if="pageCount > 1" justify="center">
+    <v-col cols="12" class="text-center">
+      <v-pagination v-model="page" :length="pageCount" :total-visible="7" density="comfortable"></v-pagination>
+    </v-col>
+  </v-row>
 </template>
 <style>
 .v-data-table__tr--mobile td {
@@ -348,8 +350,9 @@ const headers = [
   { key: 'data-table-group', width: 0 },
 ]
 
-const itemPerPage = ref(localStorage.getItem('items-per-page') || '10')
+const itemPerPage = ref(parseInt(localStorage.getItem('items-per-page') || '10') || 10)
 const page = ref(1)
+const pageCount = computed(() => Math.max(1, Math.ceil(displayClientsCount.value / itemPerPage.value)))
 
 // 模糊搜索
 const searchText = ref('')
@@ -367,14 +370,16 @@ const displayClients = computed(() => filterSettings.value.enabled ? (filterSett
 const displayClientsCount = computed(() => displayClients.value.length)
 // 搜索/Fitler 变化时回到第 1 页
 watch([searchText, () => filterSettings.value.enabled], () => { page.value = 1 })
+watch(pageCount, (n) => { if (page.value > n) page.value = n })
 // 只传当前页数据给表格，避免 1600+ 行全量渲染卡顿
 const pagedClients = computed(() => {
-  const start = (page.value - 1) * Math.max(1, parseInt(itemPerPage.value) || 10)
-  return displayClients.value.slice(start, start + Math.max(1, parseInt(itemPerPage.value) || 10))
+  const perPage = Math.max(1, itemPerPage.value)
+  const start = (page.value - 1) * perPage
+  return displayClients.value.slice(start, start + perPage)
 })
 
 const setItemPerPage = (items: number) => {
-  itemPerPage.value = items.toString()
+  itemPerPage.value = items
   localStorage.setItem('items-per-page', items.toString())
 }
 
