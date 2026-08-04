@@ -24,6 +24,13 @@ type StatsTracker struct {
 	inbounds  map[string]Counter
 	outbounds map[string]Counter
 	users     map[string]Counter
+	liveUsers map[string]Counter
+}
+
+type UserTraffic struct {
+	Name string `json:"name"`
+	Up   int64  `json:"up"`
+	Down int64  `json:"down"`
 }
 
 func NewStatsTracker() *StatsTracker {
@@ -31,6 +38,7 @@ func NewStatsTracker() *StatsTracker {
 		inbounds:  make(map[string]Counter),
 		outbounds: make(map[string]Counter),
 		users:     make(map[string]Counter),
+		liveUsers: make(map[string]Counter),
 	}
 }
 
@@ -40,6 +48,7 @@ func (c *StatsTracker) Reset() {
 	c.inbounds = make(map[string]Counter)
 	c.outbounds = make(map[string]Counter)
 	c.users = make(map[string]Counter)
+	c.liveUsers = make(map[string]Counter)
 }
 
 func (c *StatsTracker) getReadCounters(inbound string, outbound string, user string) ([]*atomic.Int64, []*atomic.Int64) {
@@ -59,8 +68,30 @@ func (c *StatsTracker) getReadCounters(inbound string, outbound string, user str
 	if user != "" {
 		readCounter = append(readCounter, c.loadOrCreateCounter(&c.users, user).read)
 		writeCounter = append(writeCounter, c.users[user].write)
+		liveUser := c.loadOrCreateCounter(&c.liveUsers, user)
+		readCounter = append(readCounter, liveUser.read)
+		writeCounter = append(writeCounter, liveUser.write)
 	}
 	return readCounter, writeCounter
+}
+
+func (c *StatsTracker) UserTrafficSnapshot(users []string) []UserTraffic {
+	c.access.Lock()
+	defer c.access.Unlock()
+
+	traffic := make([]UserTraffic, 0, len(users))
+	for _, user := range users {
+		counter, found := c.liveUsers[user]
+		if !found {
+			continue
+		}
+		traffic = append(traffic, UserTraffic{
+			Name: user,
+			Up:   counter.read.Load(),
+			Down: counter.write.Load(),
+		})
+	}
+	return traffic
 }
 
 func (c *StatsTracker) loadOrCreateCounter(obj *map[string]Counter, name string) Counter {

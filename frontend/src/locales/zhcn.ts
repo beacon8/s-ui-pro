@@ -642,6 +642,7 @@ export default {
     usage: "已用",
     enable: "启用统计",
     graphTitle: "流量图表",
+    speed: "实时速率",
     B: "B",
     KB: "KB",
     MB: "MB",

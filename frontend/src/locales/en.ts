@@ -644,6 +644,7 @@ export default {
     usage: "Usage",
     enable: "Enable Statistics",
     graphTitle: "Traffic Chart",
+    speed: "Live Speed",
     B: "B",
     KB: "KB",
     MB: "MB",

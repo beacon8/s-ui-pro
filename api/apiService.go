@@ -4,12 +4,14 @@ import (
 	"encoding/json"
 	"io"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/admin8800/s-ui/database"
 	"github.com/admin8800/s-ui/logger"
 	"github.com/admin8800/s-ui/service"
 	"github.com/admin8800/s-ui/util"
+	"github.com/admin8800/s-ui/util/common"
 
 	"github.com/gin-gonic/gin"
 )
@@ -230,6 +232,34 @@ func (a *ApiService) GetStatus(c *gin.Context) {
 func (a *ApiService) GetOnlines(c *gin.Context) {
 	onlines, err := a.StatsService.GetOnlines()
 	jsonObj(c, onlines, err)
+}
+
+func (a *ApiService) GetClientRates(c *gin.Context) {
+	rawIds := strings.Split(c.Query("ids"), ",")
+	ids := make([]uint, 0, len(rawIds))
+	seen := make(map[uint]struct{}, len(rawIds))
+	for _, rawId := range rawIds {
+		if rawId == "" {
+			continue
+		}
+		id, err := strconv.ParseUint(rawId, 10, 0)
+		if err != nil || id == 0 {
+			jsonMsg(c, "", common.NewError("invalid client id"))
+			return
+		}
+		clientId := uint(id)
+		if _, found := seen[clientId]; !found {
+			seen[clientId] = struct{}{}
+			ids = append(ids, clientId)
+		}
+	}
+	if len(ids) > 100 {
+		jsonMsg(c, "", common.NewError("too many client ids"))
+		return
+	}
+
+	rates, err := a.StatsService.GetClientRates(ids)
+	jsonObj(c, rates, err)
 }
 
 func (a *ApiService) GetLogs(c *gin.Context) {

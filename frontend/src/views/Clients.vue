@@ -215,6 +215,12 @@
             <template v-else>-</template>
           </div>
         </template>
+        <template v-slot:item.rate="{ item }">
+          <div class="text-start" dir="ltr">
+            <div>↑ {{ formatRate(item.id, 'up') }}</div>
+            <div>↓ {{ formatRate(item.id, 'down') }}</div>
+          </div>
+        </template>
         <template v-slot:item.actions="{ item }">
         <v-icon
           class="me-2"
@@ -290,10 +296,11 @@ import ClientLinks from '@/layouts/modals/ClientLinks.vue'
 import Stats from '@/layouts/modals/Stats.vue'
 import TopUsers from '@/layouts/modals/TopUsers.vue'
 import { Client } from '@/types/clients'
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { HumanReadable } from '@/plugins/utils'
 import { i18n, locale } from '@/locales'
 import { useDisplay } from 'vuetify'
+import HttpUtils from '@/plugins/httputil'
 
 const { smAndDown } = useDisplay()
 
@@ -347,6 +354,7 @@ const headers = [
   { title: i18n.global.t('client.limit'), key: 'limit', sortable: false },
   { title: i18n.global.t('date.expiry'), key: 'expiry' },
   { title: i18n.global.t('online'), key: 'online' },
+  { title: i18n.global.t('stats.speed'), key: 'rate', sortable: false },
   { key: 'data-table-group', width: 0 },
 ]
 
@@ -376,6 +384,89 @@ const pagedClients = computed(() => {
   const perPage = Math.max(1, itemPerPage.value)
   const start = (page.value - 1) * perPage
   return displayClients.value.slice(start, start + perPage)
+})
+
+type ClientRate = { id: number, up: number, down: number }
+type ClientSpeed = { up: number, down: number, ready: boolean }
+
+const clientSpeeds = ref<Record<number, ClientSpeed>>({})
+const previousRates = new Map<number, ClientRate & { at: number }>()
+let clientRatesTimer: ReturnType<typeof setInterval> | null = null
+let clientRatesActive = false
+let clientRatesLoading = false
+let lastRateIds = ''
+
+const loadClientRates = async () => {
+  if (!clientRatesActive || clientRatesLoading) return
+  const ids = pagedClients.value.map(c => c.id).filter((id): id is number => typeof id === 'number' && id > 0)
+  const rateIds = ids.join(',')
+  if (rateIds != lastRateIds) {
+    previousRates.clear()
+    clientSpeeds.value = {}
+    lastRateIds = rateIds
+  }
+  if (!rateIds) return
+
+  clientRatesLoading = true
+  const data = await HttpUtils.get('api/clientRates', { ids: rateIds })
+  clientRatesLoading = false
+  if (!clientRatesActive || !data.success || !data.obj) return
+
+  const at = data.obj.at
+  const rates = data.obj.rates as ClientRate[]
+  if (rates.length === 0) {
+    previousRates.clear()
+    clientSpeeds.value = {}
+    return
+  }
+  const speeds: Record<number, ClientSpeed> = {}
+  for (const rate of rates) {
+    const previous = previousRates.get(rate.id)
+    const elapsed = previous ? at - previous.at : 0
+    const reset = previous && (rate.up < previous.up || rate.down < previous.down)
+    speeds[rate.id] = previous && elapsed > 0 && !reset
+      ? { up: Math.max(0, (rate.up - previous.up) * 1000 / elapsed), down: Math.max(0, (rate.down - previous.down) * 1000 / elapsed), ready: true }
+      : { up: 0, down: 0, ready: false }
+    previousRates.set(rate.id, { ...rate, at })
+  }
+  clientSpeeds.value = speeds
+}
+
+const formatRate = (id: number, direction: 'up' | 'down') => {
+  const speed = clientSpeeds.value[id]
+  if (!speed || !speed.ready) return '—'
+  const value = speed[direction]
+  return value > 0 ? HumanReadable.sizeFormat(value) + '/s' : '0 ' + i18n.global.t('stats.B') + '/s'
+}
+
+const startClientRates = () => {
+  loadClientRates()
+  clientRatesTimer = setInterval(loadClientRates, 2000)
+}
+
+const stopClientRates = () => {
+  if (clientRatesTimer) {
+    clearInterval(clientRatesTimer)
+    clientRatesTimer = null
+  }
+}
+
+watch(pagedClients, () => {
+  previousRates.clear()
+  clientSpeeds.value = {}
+  lastRateIds = ''
+  loadClientRates()
+})
+
+onMounted(() => {
+  clientRatesActive = true
+  startClientRates()
+})
+
+onBeforeUnmount(() => {
+  clientRatesActive = false
+  stopClientRates()
+  previousRates.clear()
 })
 
 const setItemPerPage = (items: number) => {

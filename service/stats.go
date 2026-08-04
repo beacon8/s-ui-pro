@@ -22,6 +22,17 @@ var onlineResources = &onlines{}
 type StatsService struct {
 }
 
+type ClientRate struct {
+	Id   uint  `json:"id"`
+	Up   int64 `json:"up"`
+	Down int64 `json:"down"`
+}
+
+type ClientRates struct {
+	At    int64        `json:"at"`
+	Rates []ClientRate `json:"rates"`
+}
+
 func (s *StatsService) SaveStats(enableTraffic bool) error {
 	if corePtr == nil || !corePtr.IsRunning() {
 		return nil
@@ -155,6 +166,41 @@ func (s *StatsService) downsampleStats(stats []model.Stats, maxRows int) []model
 
 func (s *StatsService) GetOnlines() (onlines, error) {
 	return *onlineResources, nil
+}
+
+func (s *StatsService) GetClientRates(ids []uint) (*ClientRates, error) {
+	result := &ClientRates{At: time.Now().UnixMilli(), Rates: []ClientRate{}}
+	if len(ids) == 0 || corePtr == nil || !corePtr.IsRunning() {
+		return result, nil
+	}
+	box := corePtr.GetInstance()
+	if box == nil || box.StatsTracker() == nil {
+		return result, nil
+	}
+
+	type clientName struct {
+		Id   uint
+		Name string
+	}
+	var clients []clientName
+	err := database.GetDB().Model(model.Client{}).Select("id", "name").Where("id IN ?", ids).Find(&clients).Error
+	if err != nil {
+		return nil, err
+	}
+
+	names := make([]string, 0, len(clients))
+	for _, client := range clients {
+		names = append(names, client.Name)
+	}
+	trafficByName := make(map[string][2]int64, len(clients))
+	for _, traffic := range box.StatsTracker().UserTrafficSnapshot(names) {
+		trafficByName[traffic.Name] = [2]int64{traffic.Up, traffic.Down}
+	}
+	for _, client := range clients {
+		traffic := trafficByName[client.Name]
+		result.Rates = append(result.Rates, ClientRate{Id: client.Id, Up: traffic[0], Down: traffic[1]})
+	}
+	return result, nil
 }
 
 // TopUser 流量排行单条记录

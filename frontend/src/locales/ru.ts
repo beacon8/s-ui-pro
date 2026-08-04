@@ -643,6 +643,7 @@ export default {
     usage: "Использование",
     enable: "Включить статистику",
     graphTitle: "График трафика",
+    speed: "Текущая скорость",
     B: "Б",
     KB: "КБ",
     MB: "МБ",
@@ -666,6 +667,5 @@ export default {
   },
 }
  
-
 
 

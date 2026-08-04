@@ -86,6 +86,8 @@ func (a *APIv2Handler) getHandler(c *gin.Context) {
 		a.ApiService.GetStatus(c)
 	case "onlines":
 		a.ApiService.GetOnlines(c)
+	case "clientRates":
+		a.ApiService.GetClientRates(c)
 	case "logs":
 		a.ApiService.GetLogs(c)
 	case "changes":

@@ -642,6 +642,7 @@ export default {
     usage: "Sử dụng",
     enable: "Kích hoạt thống kê",
     graphTitle: "Biểu đồ lưu lượng",
+    speed: "Tốc độ trực tiếp",
     B: "B",
     KB: "KB",
     MB: "MB",
