@@ -1,6 +1,6 @@
 # S-UI 后端 REST API 文档
 
-> 版本：v1.4.6 ｜ 后端框架：Gin ｜ 数据格式：JSON（除特殊说明外）
+> 版本：v1.6.7 ｜ 后端框架：Gin ｜ 数据格式：JSON（除特殊说明外）
 
 本文档覆盖 S-UI 面板后端的全部可用接口。所有业务接口分为两套：
 
@@ -377,7 +377,39 @@ curl -b cookie.txt -X POST 'http://127.0.0.1:2095/app/api/save' \
 #### settings（面板设置）
 
 - `object=settings`，`data` 为**键值对对象**：`{ "webPath": "/", "trafficAge": "30", ... }`。
-- 特殊键：`webCertFile`/`webKeyFile`/`subCertFile`/`subKeyFile` 会校验文件存在；`webPath`/`subPath` 自动补全首尾 `/`；`trafficAge=0` 会清空所有流量统计。
+- 特殊键处理：
+  - `webCertFile`/`webKeyFile`/`subCertFile`/`subKeyFile`：值非空时校验文件存在，不存在则保存失败。
+  - `webPath`/`subPath`/`subApiPath`：自动补全首尾 `/`。
+  - `trafficAge=0`：清空所有流量统计（`stats` 表）。
+- 可用键一览（`GET /api/settings` 返回除 `secret`/`config`/`version` 外的全部键）：
+
+| 分类 | 键 | 默认值 | 说明 |
+|------|----|--------|------|
+| 面板 | `webListen` | `""` | 监听地址 |
+| 面板 | `webDomain` | `""` | 域名校验（非空时 Host 不匹配返回 403） |
+| 面板 | `webPort` | `2095` | 面板端口 |
+| 面板 | `webPath` | `/app/` | 面板路径前缀 |
+| 面板 | `webCertFile` / `webKeyFile` | `""` | 面板 TLS 证书/私钥路径 |
+| 面板 | `webURI` | `""` | 面板对外 URI（CLI `sui uri` 使用） |
+| 面板 | `sessionMaxAge` | `0` | 会话有效期（分钟），0=浏览器关闭即失效 |
+| 面板 | `secret` | 随机 32 位 | Session Cookie 加密密钥（**不对外暴露**） |
+| 系统 | `trafficAge` | `30` | 流量统计保留天数，0=不存储 |
+| 系统 | `timeLocation` | `Asia/Shanghai` | 时区（影响 cronjob 调度） |
+| 订阅 | `subListen` | `""` | 订阅服务监听地址 |
+| 订阅 | `subPort` | `2096` | 订阅服务端口 |
+| 订阅 | `subPath` | `/sub/` | 单用户订阅路径前缀 |
+| 订阅 | `subDomain` | `""` | 订阅域名校验 |
+| 订阅 | `subCertFile` / `subKeyFile` | `""` | 订阅 TLS 证书/私钥路径 |
+| 订阅 | `subUpdates` | `12` | `Profile-Update-Interval` 头（小时） |
+| 订阅 | `subEncode` | `true` | 普通订阅是否 base64 编码 |
+| 订阅 | `subShowInfo` | `false` | 普通订阅是否注入流量/到期信息 |
+| 订阅 | `subURI` | `""` | 订阅对外基础 URI（空则用请求 Host） |
+| 订阅 | `subJsonExt` | `""` | JSON 订阅扩展模板（合并 log/dns/inbounds/experimental/route） |
+| 订阅 | `subClashExt` | `""` | Clash 订阅扩展模板（YAML） |
+| 订阅 | `subApiPath` | `/subs_随机8位/` | 聚合订阅 API 路径（防扫描） |
+| 订阅 | `subApiKey` | `""` | 聚合订阅 API 访问密钥（空=不校验） |
+| 核心 | `config` | 默认配置 | sing-box 基础配置 JSON（**不对外暴露**，通过 `object=config` 保存） |
+| 核心 | `version` | 当前版本 | 数据库版本号（**不对外暴露**） |
 
 ---
 
@@ -496,10 +528,10 @@ curl -b cookie.txt -X POST 'http://127.0.0.1:2095/app/api/save' \
 
 | 参数 | 说明 |
 |------|------|
-| k | 密钥类型：如 `x25519`（Reality）、`ech`、`tls`(自签) 等 |
-| o | 附加选项（按类型不同） |
+| k | 密钥类型：`ech`（ECH 配置+密钥）、`tls`（自签证书）、`reality`（Reality 密钥对）、`wireguard`（WireGuard 密钥） |
+| o | 附加选项（按类型不同）：`ech`/`tls` 传 server_name；`wireguard` 传可选参数；`reality` 无需选项 |
 
-返回生成的密钥对。
+返回生成的密钥对（字符串数组，按类型包含私钥/公钥/配置 PEM 等内容）。
 
 ---
 

@@ -1,6 +1,6 @@
 # S-UI 批量导入 API 文档
 
-> 版本：v1.4.1+  
+> 版本：v1.6.7+  
 > 鉴权：v1 使用 Cookie Session（浏览器登录后的 `s-ui` Cookie）；v2 使用请求头 `Token: <token>`  
 > 所有请求均为 `POST`，`Content-Type: application/x-www-form-urlencoded`（`/api/save` 系列）或 `application/json`（`/api/importRules`）
 
