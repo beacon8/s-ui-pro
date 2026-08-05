@@ -46,13 +46,45 @@ func limiterTracker() *core.LimiterTracker {
 	return box.LimiterTracker()
 }
 
+func clientLimitConfig(c *model.Client) core.UserLimitConfig {
+	config := core.UserLimitConfig{
+		UpBPS:   toBytesPerSec(c.UpLimit, c.LimitUnit),
+		DownBPS: toBytesPerSec(c.DownLimit, c.LimitUnit),
+	}
+	if c.DynamicLimitEnabled {
+		config.Dynamic = core.DynamicLimitPolicy{
+			Enabled:      true,
+			ThresholdBPS: toBytesPerSec(c.DynamicLimitThreshold, c.LimitUnit),
+			ObserveFor:   time.Duration(c.DynamicLimitDuration) * time.Second,
+			LimitBPS:     toBytesPerSec(c.DynamicLimitRate, c.LimitUnit),
+			Cooldown:     time.Duration(c.DynamicLimitCooldown) * time.Second,
+		}
+	}
+	return config
+}
+
+func validateClientLimit(c *model.Client) error {
+	if !c.DynamicLimitEnabled {
+		return nil
+	}
+	config := clientLimitConfig(c).Dynamic
+	if config.ThresholdBPS <= 0 || config.ObserveFor <= 0 || config.LimitBPS <= 0 || config.Cooldown <= 0 {
+		return common.NewError("dynamic download limit values must be greater than zero")
+	}
+	return nil
+}
+
 // applyClientLimit pushes a client's limit into the running limiter (no-op if core down).
 func applyClientLimit(c *model.Client) {
 	lt := limiterTracker()
 	if lt == nil {
 		return
 	}
-	lt.SetUserLimit(c.Name, toBytesPerSec(c.UpLimit, c.LimitUnit), toBytesPerSec(c.DownLimit, c.LimitUnit))
+	if !c.Enable {
+		lt.DeleteUser(c.Name)
+		return
+	}
+	lt.SetUserLimitConfig(c.Name, clientLimitConfig(c))
 }
 
 // removeClientLimit drops a client from the running limiter (no-op if core down).
@@ -86,7 +118,7 @@ func (s *ClientService) GetAll() (*[]model.Client, error) {
 	db := database.GetDB()
 	var clients []model.Client
 	err := db.Model(model.Client{}).
-		Select("`id`, `enable`, `name`, `desc`, `group`, `inbounds`, `up`, `down`, `volume`, `expiry`, `up_limit`, `down_limit`, `limit_unit`").
+		Select("`id`, `enable`, `name`, `desc`, `group`, `inbounds`, `up`, `down`, `volume`, `expiry`, `up_limit`, `down_limit`, `limit_unit`, `dynamic_limit_enabled`, `dynamic_limit_threshold`, `dynamic_limit_duration`, `dynamic_limit_rate`, `dynamic_limit_cooldown`").
 		Scan(&clients).Error
 	if err != nil {
 		return nil, err
@@ -103,6 +135,9 @@ func (s *ClientService) Save(tx *gorm.DB, act string, data json.RawMessage, host
 		var client model.Client
 		err = json.Unmarshal(data, &client)
 		if err != nil {
+			return nil, err
+		}
+		if err = validateClientLimit(&client); err != nil {
 			return nil, err
 		}
 		err = s.updateLinksWithFixedInbounds(tx, []*model.Client{&client}, hostname)
@@ -141,6 +176,11 @@ func (s *ClientService) Save(tx *gorm.DB, act string, data json.RawMessage, host
 		if err != nil {
 			return nil, err
 		}
+		for _, client := range clients {
+			if err = validateClientLimit(client); err != nil {
+				return nil, err
+			}
+		}
 		err = json.Unmarshal(clients[0].Inbounds, &inboundIds)
 		if err != nil {
 			return nil, err
@@ -161,6 +201,11 @@ func (s *ClientService) Save(tx *gorm.DB, act string, data json.RawMessage, host
 		err = json.Unmarshal(data, &clients)
 		if err != nil {
 			return nil, err
+		}
+		for _, client := range clients {
+			if err = validateClientLimit(client); err != nil {
+				return nil, err
+			}
 		}
 		oldNames := make(map[uint]string, len(clients))
 		for _, client := range clients {

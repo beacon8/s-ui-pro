@@ -23,9 +23,12 @@ type StatsService struct {
 }
 
 type ClientRate struct {
-	Id   uint  `json:"id"`
-	Up   int64 `json:"up"`
-	Down int64 `json:"down"`
+	Id                      uint   `json:"id"`
+	Up                      int64  `json:"up"`
+	Down                    int64  `json:"down"`
+	DynamicState            string `json:"dynamicState"`
+	DynamicObservedSeconds  int64  `json:"dynamicObservedSeconds"`
+	DynamicRemainingSeconds int64  `json:"dynamicRemainingSeconds"`
 }
 
 type ClientRates struct {
@@ -196,11 +199,36 @@ func (s *StatsService) GetClientRates(ids []uint) (*ClientRates, error) {
 	for _, traffic := range box.StatsTracker().UserTrafficSnapshot(names) {
 		trafficByName[traffic.Name] = [2]int64{traffic.Up, traffic.Down}
 	}
+	now := time.Now()
 	for _, client := range clients {
 		traffic := trafficByName[client.Name]
-		result.Rates = append(result.Rates, ClientRate{Id: client.Id, Up: traffic[0], Down: traffic[1]})
+		status := box.LimiterTracker().DynamicStatus(client.Name, now)
+		result.Rates = append(result.Rates, ClientRate{
+			Id: client.Id, Up: traffic[0], Down: traffic[1],
+			DynamicState:            status.State,
+			DynamicObservedSeconds:  status.ObservedSeconds,
+			DynamicRemainingSeconds: status.RemainingSeconds,
+		})
 	}
 	return result, nil
+}
+
+func (s *StatsService) SampleDynamicLimits(now time.Time) {
+	if corePtr == nil || !corePtr.IsRunning() {
+		return
+	}
+	box := corePtr.GetInstance()
+	if box == nil || box.StatsTracker() == nil || box.LimiterTracker() == nil {
+		return
+	}
+	users := box.LimiterTracker().DynamicUsers()
+	trafficByName := make(map[string]int64, len(users))
+	for _, traffic := range box.StatsTracker().UserTrafficSnapshot(users) {
+		trafficByName[traffic.Name] = traffic.Down
+	}
+	for _, user := range users {
+		box.LimiterTracker().ObserveDownload(user, trafficByName[user], now)
+	}
 }
 
 // TopUser 流量排行单条记录

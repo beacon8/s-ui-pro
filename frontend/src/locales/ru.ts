@@ -229,6 +229,14 @@ export default {
     limitUnit: "Единица",
     limit: "Лимит",
     zeroIsUnlimited: "0 — без ограничений",
+    dynamicLimitEnabled: "Динамический лимит загрузки",
+    dynamicLimitThreshold: "Порог срабатывания",
+    dynamicLimitDuration: "Время срабатывания",
+    dynamicLimitRate: "Ограниченная скорость",
+    dynamicLimitCooldown: "Время ограничения",
+    dynamicDisabled: "Динамика: отключена",
+    dynamicObserving: "Динамика: наблюдение",
+    dynamicLimited: "Динамика: ограничено, осталось",
   },
   bulk: {
     order: "Порядок",
@@ -667,5 +675,4 @@ export default {
   },
 }
  
-
 

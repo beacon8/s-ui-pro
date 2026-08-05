@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"net"
 	"sync"
 	"time"
@@ -17,9 +18,41 @@ import (
 // limits forcing tiny packets to wait, which would hurt interactive latency.
 const minBurst = 64 * 1024
 
+type DynamicLimitPolicy struct {
+	Enabled      bool
+	ThresholdBPS int64
+	ObserveFor   time.Duration
+	LimitBPS     int64
+	Cooldown     time.Duration
+}
+
+type UserLimitConfig struct {
+	UpBPS   int64
+	DownBPS int64
+	Dynamic DynamicLimitPolicy
+}
+
+type DynamicLimitStatus struct {
+	State            string `json:"state"`
+	ObservedSeconds  int64  `json:"observedSeconds"`
+	RemainingSeconds int64  `json:"remainingSeconds"`
+}
+
 type userLimiter struct {
-	up   *rate.Limiter // client -> server (Read side)
-	down *rate.Limiter // server -> client (Write side)
+	up               *rate.Limiter
+	down             *rate.Limiter
+	upContext        context.Context
+	downContext      context.Context
+	cancelUp         context.CancelFunc
+	cancelDown       context.CancelFunc
+	config           UserLimitConfig
+	lastDown         int64
+	lastSample       time.Time
+	observedFor      time.Duration
+	limitedUntil     time.Time
+	dynamicLimited   bool
+	effectiveUpBPS   int64
+	effectiveDownBPS int64
 }
 
 type LimiterTracker struct {
@@ -28,14 +61,15 @@ type LimiterTracker struct {
 }
 
 func NewLimiterTracker() *LimiterTracker {
-	return &LimiterTracker{
-		users: make(map[string]*userLimiter),
-	}
+	return &LimiterTracker{users: make(map[string]*userLimiter)}
 }
 
 func (t *LimiterTracker) Reset() {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	for _, user := range t.users {
+		user.cancelWaits()
+	}
 	t.users = make(map[string]*userLimiter)
 }
 
@@ -46,47 +80,85 @@ func burstFor(bps int64) int {
 	return minBurst
 }
 
-// SetUserLimit creates or updates a user's limiter. upBPS/downBPS are bytes/sec.
-// If both are 0 the user entry is removed.
+func (u *userLimiter) cancelWaits() {
+	if u.cancelUp != nil {
+		u.cancelUp()
+	}
+	if u.cancelDown != nil {
+		u.cancelDown()
+	}
+}
+
+func updateLimiter(limiter **rate.Limiter, waitContext *context.Context, cancel *context.CancelFunc, oldBPS *int64, newBPS int64) {
+	if *oldBPS == newBPS {
+		return
+	}
+	if *cancel != nil {
+		(*cancel)()
+	}
+	*oldBPS = newBPS
+	if newBPS <= 0 {
+		*limiter = nil
+		*waitContext = nil
+		*cancel = nil
+		return
+	}
+	if *limiter == nil {
+		*limiter = rate.NewLimiter(rate.Limit(newBPS), burstFor(newBPS))
+	} else {
+		(*limiter).SetLimit(rate.Limit(newBPS))
+		(*limiter).SetBurst(burstFor(newBPS))
+	}
+	*waitContext, *cancel = context.WithCancel(context.Background())
+}
+
+func (u *userLimiter) applyLimits() {
+	downBPS := u.config.DownBPS
+	if u.dynamicLimited && (downBPS <= 0 || u.config.Dynamic.LimitBPS < downBPS) {
+		downBPS = u.config.Dynamic.LimitBPS
+	}
+	updateLimiter(&u.up, &u.upContext, &u.cancelUp, &u.effectiveUpBPS, u.config.UpBPS)
+	updateLimiter(&u.down, &u.downContext, &u.cancelDown, &u.effectiveDownBPS, downBPS)
+}
+
+func validDynamicPolicy(policy DynamicLimitPolicy) bool {
+	return policy.Enabled && policy.ThresholdBPS > 0 && policy.ObserveFor > 0 && policy.LimitBPS > 0 && policy.Cooldown > 0
+}
+
+// SetUserLimit creates or updates a user's static limits. Values are bytes/sec.
 func (t *LimiterTracker) SetUserLimit(name string, upBPS, downBPS int64) {
+	t.SetUserLimitConfig(name, UserLimitConfig{UpBPS: upBPS, DownBPS: downBPS})
+}
+
+// SetUserLimitConfig creates or updates a user's static and dynamic limits.
+func (t *LimiterTracker) SetUserLimitConfig(name string, config UserLimitConfig) {
 	if name == "" {
 		return
 	}
-	if upBPS == 0 && downBPS == 0 {
+	if !validDynamicPolicy(config.Dynamic) {
+		config.Dynamic = DynamicLimitPolicy{}
+	}
+	if config.UpBPS <= 0 && config.DownBPS <= 0 && !config.Dynamic.Enabled {
 		t.DeleteUser(name)
 		return
 	}
 
 	t.mu.Lock()
 	defer t.mu.Unlock()
-
-	ul, ok := t.users[name]
-	if !ok {
-		ul = &userLimiter{}
-		t.users[name] = ul
+	user := t.users[name]
+	if user == nil {
+		user = &userLimiter{}
+		t.users[name] = user
 	}
-
-	if upBPS > 0 {
-		if ul.up == nil {
-			ul.up = rate.NewLimiter(rate.Limit(upBPS), burstFor(upBPS))
-		} else {
-			ul.up.SetLimit(rate.Limit(upBPS))
-			ul.up.SetBurst(burstFor(upBPS))
-		}
-	} else {
-		ul.up = nil
+	if user.config.Dynamic != config.Dynamic {
+		user.lastDown = 0
+		user.lastSample = time.Time{}
+		user.observedFor = 0
+		user.limitedUntil = time.Time{}
+		user.dynamicLimited = false
 	}
-
-	if downBPS > 0 {
-		if ul.down == nil {
-			ul.down = rate.NewLimiter(rate.Limit(downBPS), burstFor(downBPS))
-		} else {
-			ul.down.SetLimit(rate.Limit(downBPS))
-			ul.down.SetBurst(burstFor(downBPS))
-		}
-	} else {
-		ul.down = nil
-	}
+	user.config = config
+	user.applyLimits()
 }
 
 func (t *LimiterTracker) DeleteUser(name string) {
@@ -95,44 +167,116 @@ func (t *LimiterTracker) DeleteUser(name string) {
 	}
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	if user := t.users[name]; user != nil {
+		user.cancelWaits()
+	}
 	delete(t.users, name)
 }
 
-// BulkLoad replaces the limiter set with the given limits ([2]int64{upBPS, downBPS}).
 func (t *LimiterTracker) BulkLoad(limits map[string][2]int64) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	t.users = make(map[string]*userLimiter)
-	for name, l := range limits {
-		if name == "" || (l[0] == 0 && l[1] == 0) {
-			continue
-		}
-		ul := &userLimiter{}
-		if l[0] > 0 {
-			ul.up = rate.NewLimiter(rate.Limit(l[0]), burstFor(l[0]))
-		}
-		if l[1] > 0 {
-			ul.down = rate.NewLimiter(rate.Limit(l[1]), burstFor(l[1]))
-		}
-		t.users[name] = ul
+	configs := make(map[string]UserLimitConfig, len(limits))
+	for name, limit := range limits {
+		configs[name] = UserLimitConfig{UpBPS: limit[0], DownBPS: limit[1]}
+	}
+	t.BulkLoadConfigs(configs)
+}
+
+func (t *LimiterTracker) BulkLoadConfigs(limits map[string]UserLimitConfig) {
+	t.Reset()
+	for name, limit := range limits {
+		t.SetUserLimitConfig(name, limit)
 	}
 }
 
-func (t *LimiterTracker) getUser(name string) *userLimiter {
+func (t *LimiterTracker) DynamicUsers() []string {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
-	return t.users[name]
+	users := make([]string, 0, len(t.users))
+	for name, user := range t.users {
+		if user.config.Dynamic.Enabled {
+			users = append(users, name)
+		}
+	}
+	return users
+}
+
+func (t *LimiterTracker) ObserveDownload(name string, totalDown int64, now time.Time) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	user := t.users[name]
+	if user == nil || !user.config.Dynamic.Enabled {
+		return
+	}
+	if user.dynamicLimited {
+		if now.Before(user.limitedUntil) {
+			return
+		}
+		user.dynamicLimited = false
+		user.limitedUntil = time.Time{}
+		user.observedFor = 0
+		user.lastDown = totalDown
+		user.lastSample = now
+		user.applyLimits()
+		return
+	}
+	if user.lastSample.IsZero() || !now.After(user.lastSample) || totalDown < user.lastDown {
+		user.lastDown = totalDown
+		user.lastSample = now
+		user.observedFor = 0
+		return
+	}
+
+	elapsed := now.Sub(user.lastSample)
+	rateBPS := float64(totalDown-user.lastDown) / elapsed.Seconds()
+	user.lastDown = totalDown
+	user.lastSample = now
+	if rateBPS < float64(user.config.Dynamic.ThresholdBPS) {
+		user.observedFor = 0
+		return
+	}
+	user.observedFor += elapsed
+	if user.observedFor >= user.config.Dynamic.ObserveFor {
+		user.dynamicLimited = true
+		user.limitedUntil = now.Add(user.config.Dynamic.Cooldown)
+		user.applyLimits()
+	}
+}
+
+func (t *LimiterTracker) DynamicStatus(name string, now time.Time) DynamicLimitStatus {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	user := t.users[name]
+	if user == nil || !user.config.Dynamic.Enabled {
+		return DynamicLimitStatus{State: "disabled"}
+	}
+	if user.dynamicLimited {
+		remaining := user.limitedUntil.Sub(now)
+		if remaining < 0 {
+			remaining = 0
+		}
+		return DynamicLimitStatus{State: "limited", RemainingSeconds: int64((remaining + time.Second - 1) / time.Second)}
+	}
+	return DynamicLimitStatus{State: "observing", ObservedSeconds: int64(user.observedFor / time.Second)}
+}
+
+func (t *LimiterTracker) currentLimit(name string, download bool) (*rate.Limiter, context.Context) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	user := t.users[name]
+	if user == nil {
+		return nil, nil
+	}
+	if download {
+		return user.down, user.downContext
+	}
+	return user.up, user.upContext
 }
 
 func (t *LimiterTracker) RoutedConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, matchedRule adapter.Rule, matchOutbound adapter.Outbound) net.Conn {
 	if metadata.User == "" {
 		return conn
 	}
-	ul := t.getUser(metadata.User)
-	if ul == nil || (ul.up == nil && ul.down == nil) {
-		return conn
-	}
-	return &limitedConn{Conn: conn, up: ul.up, down: ul.down}
+	return &limitedConn{Conn: conn, tracker: t, user: metadata.User}
 }
 
 func (t *LimiterTracker) RoutedPacketConnection(ctx context.Context, conn network.PacketConn, metadata adapter.InboundContext, matchedRule adapter.Rule, matchOutbound adapter.Outbound) network.PacketConn {
@@ -142,32 +286,39 @@ func (t *LimiterTracker) RoutedPacketConnection(ctx context.Context, conn networ
 
 type limitedConn struct {
 	net.Conn
-	up   *rate.Limiter
-	down *rate.Limiter
+	tracker *LimiterTracker
+	user    string
 }
 
-func (w *limitedConn) wait(l *rate.Limiter, n int) {
-	if l == nil || n <= 0 {
+func (w *limitedConn) wait(download bool, n int) {
+	if n <= 0 {
 		return
 	}
-	if err := l.WaitN(context.Background(), n); err != nil {
+	limiter, waitContext := w.tracker.currentLimit(w.user, download)
+	if limiter == nil {
+		return
+	}
+	if err := limiter.WaitN(waitContext, n); err != nil {
+		if errors.Is(err, context.Canceled) {
+			return
+		}
 		// n exceeds the limiter's burst: fall back to non-blocking to avoid
 		// stalling forever, then continue.
 		logger.Debug("limiter waitN fallback: ", err.Error())
-		l.AllowN(time.Now(), n)
+		limiter.AllowN(time.Now(), n)
 	}
 }
 
 func (w *limitedConn) Read(b []byte) (int, error) {
 	n, err := w.Conn.Read(b)
 	if n > 0 {
-		w.wait(w.up, n)
+		w.wait(false, n)
 	}
 	return n, err
 }
 
 func (w *limitedConn) Write(b []byte) (int, error) {
-	w.wait(w.down, len(b))
+	w.wait(true, len(b))
 	return w.Conn.Write(b)
 }
 

@@ -219,6 +219,7 @@
           <div class="text-start" dir="ltr">
             <div>↑ {{ formatRate(item.id, 'up') }}</div>
             <div>↓ {{ formatRate(item.id, 'down') }}</div>
+            <div>{{ formatDynamicStatus(item) }}</div>
           </div>
         </template>
         <template v-slot:item.actions="{ item }">
@@ -386,10 +387,19 @@ const pagedClients = computed(() => {
   return displayClients.value.slice(start, start + perPage)
 })
 
-type ClientRate = { id: number, up: number, down: number }
+type ClientRate = {
+  id: number
+  up: number
+  down: number
+  dynamicState: 'disabled' | 'observing' | 'limited'
+  dynamicObservedSeconds: number
+  dynamicRemainingSeconds: number
+}
 type ClientSpeed = { up: number, down: number, ready: boolean }
+type ClientDynamicStatus = Pick<ClientRate, 'dynamicState' | 'dynamicObservedSeconds' | 'dynamicRemainingSeconds'>
 
 const clientSpeeds = ref<Record<number, ClientSpeed>>({})
+const clientDynamicStatuses = ref<Record<number, ClientDynamicStatus>>({})
 const previousRates = new Map<number, ClientRate & { at: number }>()
 let clientRatesTimer: ReturnType<typeof setInterval> | null = null
 let clientRatesActive = false
@@ -403,6 +413,7 @@ const loadClientRates = async () => {
   if (rateIds != lastRateIds) {
     previousRates.clear()
     clientSpeeds.value = {}
+    clientDynamicStatuses.value = {}
     lastRateIds = rateIds
   }
   if (!rateIds) return
@@ -417,9 +428,11 @@ const loadClientRates = async () => {
   if (rates.length === 0) {
     previousRates.clear()
     clientSpeeds.value = {}
+    clientDynamicStatuses.value = {}
     return
   }
   const speeds: Record<number, ClientSpeed> = {}
+  const statuses: Record<number, ClientDynamicStatus> = {}
   for (const rate of rates) {
     const previous = previousRates.get(rate.id)
     const elapsed = previous ? at - previous.at : 0
@@ -428,8 +441,10 @@ const loadClientRates = async () => {
       ? { up: Math.max(0, (rate.up - previous.up) * 1000 / elapsed), down: Math.max(0, (rate.down - previous.down) * 1000 / elapsed), ready: true }
       : { up: 0, down: 0, ready: false }
     previousRates.set(rate.id, { ...rate, at })
+    statuses[rate.id] = rate
   }
   clientSpeeds.value = speeds
+  clientDynamicStatuses.value = statuses
 }
 
 const formatRate = (id: number, direction: 'up' | 'down') => {
@@ -437,6 +452,15 @@ const formatRate = (id: number, direction: 'up' | 'down') => {
   if (!speed || !speed.ready) return '—'
   const kbps = speed[direction] * 8 / 1000
   return kbps >= 1000 ? (kbps / 1000).toFixed(2) + ' mbps' : kbps.toFixed(2) + ' kbps'
+}
+
+const formatDynamicStatus = (client: Client) => {
+  if (!client.dynamicLimitEnabled) return i18n.global.t('client.dynamicDisabled')
+  const status = client.id ? clientDynamicStatuses.value[client.id] : undefined
+  if (status?.dynamicState === 'limited') {
+    return `${i18n.global.t('client.dynamicLimited')} ${status.dynamicRemainingSeconds}s`
+  }
+  return `${i18n.global.t('client.dynamicObserving')} ${status?.dynamicObservedSeconds ?? 0}s`
 }
 
 const startClientRates = () => {
@@ -454,6 +478,7 @@ const stopClientRates = () => {
 watch(pagedClients, () => {
   previousRates.clear()
   clientSpeeds.value = {}
+  clientDynamicStatuses.value = {}
   lastRateIds = ''
   loadClientRates()
 })

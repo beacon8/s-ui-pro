@@ -73,6 +73,23 @@
                   <v-select v-model="client.limitUnit" :items="['mbps', 'kbps', 'bps']" :label="$t('client.limitUnit')" hide-details></v-select>
                 </v-col>
               </v-row>
+              <v-row>
+                <v-col cols="12" sm="6" md="4">
+                  <v-switch color="primary" v-model="client.dynamicLimitEnabled" :label="$t('client.dynamicLimitEnabled')" hide-details></v-switch>
+                </v-col>
+                <v-col cols="12" sm="6" md="4">
+                  <v-text-field v-model.number="client.dynamicLimitThreshold" type="number" min="1" :disabled="!client.dynamicLimitEnabled" :label="$t('client.dynamicLimitThreshold')" :suffix="limitSuffix" hide-details></v-text-field>
+                </v-col>
+                <v-col cols="12" sm="6" md="4">
+                  <v-text-field v-model.number="client.dynamicLimitDuration" type="number" min="1" :disabled="!client.dynamicLimitEnabled" :label="$t('client.dynamicLimitDuration')" suffix="s" hide-details></v-text-field>
+                </v-col>
+                <v-col cols="12" sm="6" md="4">
+                  <v-text-field v-model.number="client.dynamicLimitRate" type="number" min="1" :disabled="!client.dynamicLimitEnabled" :label="$t('client.dynamicLimitRate')" :suffix="limitSuffix" hide-details></v-text-field>
+                </v-col>
+                <v-col cols="12" sm="6" md="4">
+                  <v-text-field v-model.number="client.dynamicLimitCooldown" type="number" min="1" :disabled="!client.dynamicLimitEnabled" :label="$t('client.dynamicLimitCooldown')" suffix="s" hide-details></v-text-field>
+                </v-col>
+              </v-row>
               <v-row v-if="id > 0">
                 <v-col cols="12" sm="6" md="4" class="d-flex flex-column">
                   <div class="d-flex justify-space-between align-center">

@@ -21,6 +21,8 @@ func (c *CronJob) Start(loc *time.Location, trafficAge int) error {
 	go func() {
 		// Start stats job
 		c.cron.AddJob("@every 10s", NewStatsJob(trafficAge > 0))
+		// Sample in-memory dynamic download limits
+		c.cron.AddJob("@every 1s", NewDynamicLimitJob())
 		// Start expiry job
 		c.cron.AddJob("@every 1m", NewDepleteJob())
 		// Start deleting old stats

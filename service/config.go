@@ -136,21 +136,20 @@ func (s *ConfigService) loadClientLimits() {
 	}
 	var clients []model.Client
 	err := database.GetDB().Model(model.Client{}).Where("enable = ?", true).
-		Select("name, up_limit, down_limit, limit_unit").Find(&clients).Error
+		Select("name, up_limit, down_limit, limit_unit, dynamic_limit_enabled, dynamic_limit_threshold, dynamic_limit_duration, dynamic_limit_rate, dynamic_limit_cooldown").Find(&clients).Error
 	if err != nil {
 		logger.Warning("load client limits err:", err.Error())
 		return
 	}
-	limits := make(map[string][2]int64, len(clients))
+	limits := make(map[string]core.UserLimitConfig, len(clients))
 	for _, c := range clients {
-		up := toBytesPerSec(c.UpLimit, c.LimitUnit)
-		down := toBytesPerSec(c.DownLimit, c.LimitUnit)
-		if up == 0 && down == 0 {
+		limit := clientLimitConfig(&c)
+		if limit.UpBPS == 0 && limit.DownBPS == 0 && !limit.Dynamic.Enabled {
 			continue
 		}
-		limits[c.Name] = [2]int64{up, down}
+		limits[c.Name] = limit
 	}
-	box.LimiterTracker().BulkLoad(limits)
+	box.LimiterTracker().BulkLoadConfigs(limits)
 }
 
 func (s *ConfigService) RestartCore() error {

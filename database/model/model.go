@@ -48,6 +48,13 @@ type Client struct {
 	UpLimit   int64  `json:"upLimit" form:"upLimit" gorm:"default:0;not null"`
 	DownLimit int64  `json:"downLimit" form:"downLimit" gorm:"default:0;not null"`
 	LimitUnit string `json:"limitUnit" form:"limitUnit" gorm:"default:'mbps';not null"`
+
+	// Dynamic per-user download limit (rates use LimitUnit, durations use seconds)
+	DynamicLimitEnabled   bool  `json:"dynamicLimitEnabled" form:"dynamicLimitEnabled" gorm:"default:false;not null"`
+	DynamicLimitThreshold int64 `json:"dynamicLimitThreshold" form:"dynamicLimitThreshold" gorm:"default:0;not null"`
+	DynamicLimitDuration  int64 `json:"dynamicLimitDuration" form:"dynamicLimitDuration" gorm:"default:0;not null"`
+	DynamicLimitRate      int64 `json:"dynamicLimitRate" form:"dynamicLimitRate" gorm:"default:0;not null"`
+	DynamicLimitCooldown  int64 `json:"dynamicLimitCooldown" form:"dynamicLimitCooldown" gorm:"default:0;not null"`
 }
 
 type Stats struct {

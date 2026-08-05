@@ -28,6 +28,11 @@ export interface Client {
   upLimit?: number
   downLimit?: number
   limitUnit?: 'mbps' | 'kbps' | 'bps'
+  dynamicLimitEnabled?: boolean
+  dynamicLimitThreshold?: number
+  dynamicLimitDuration?: number
+  dynamicLimitRate?: number
+  dynamicLimitCooldown?: number
 }
 
 const defaultClient: Client = {
@@ -51,6 +56,11 @@ const defaultClient: Client = {
   upLimit: 0,
   downLimit: 0,
   limitUnit: 'mbps',
+  dynamicLimitEnabled: false,
+  dynamicLimitThreshold: 0,
+  dynamicLimitDuration: 0,
+  dynamicLimitRate: 0,
+  dynamicLimitCooldown: 0,
 }
 
 type Config = {
