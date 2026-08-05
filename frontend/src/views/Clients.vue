@@ -435,8 +435,8 @@ const loadClientRates = async () => {
 const formatRate = (id: number, direction: 'up' | 'down') => {
   const speed = clientSpeeds.value[id]
   if (!speed || !speed.ready) return '—'
-  const value = speed[direction]
-  return value > 0 ? HumanReadable.sizeFormat(value) + '/s' : '0 ' + i18n.global.t('stats.B') + '/s'
+  const kbps = speed[direction] * 8 / 1000
+  return kbps >= 1000 ? (kbps / 1000).toFixed(2) + ' mbps' : kbps.toFixed(2) + ' kbps'
 }
 
 const startClientRates = () => {
